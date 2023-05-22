@@ -5,12 +5,15 @@ namespace ConsoleShop_WithDB
     {
         protected override string Name { get; }
         protected override string Description { get; }
-        protected override DataSet Data { get; }
+        protected override Dictionary<Product, int> ProductsInShop { get; }
+
         public ShopNN ()
         {
             Name = "Магазин \"Слизь Сизня\"";
             Description = "Нижегородское отделение лицензионной продукции по консольной РПГ \"Hero and SVIN\".";
-            Data = DataBase.LoadDB();            
+            ProductsInShop = new Dictionary<Product, int> ();
+            DataBase.LoadDB();
+            GetProductsFromDB(DataBase.Data);
         }
     }
 }
