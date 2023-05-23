@@ -10,7 +10,7 @@ namespace ConsoleShop_WithDB
         internal string Made { get; }
         internal double Price { get; }
 
-        public Product (int id, string name, string category, string description, string made, int price)
+        internal Product (int id, string name, string category, string description, string made, int price)
         {
             Id = id;
             Name = name;
@@ -18,6 +18,14 @@ namespace ConsoleShop_WithDB
             Description = description;
             Made = made;
             Price = price;            
+        }
+
+        internal void ProductInfo ()
+        {
+            Color.Cyan("Характеристики выбранного товара:");
+            Console.WriteLine($"{Description}");
+            Console.WriteLine($"Cтрана-производитель - {Made}.");
+            Color.Green($"Цена - {Price}");
         }
     }
 }

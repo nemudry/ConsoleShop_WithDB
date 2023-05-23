@@ -17,6 +17,9 @@ public static class Program
         {
             Console.WriteLine("Ошибка!");
             Console.WriteLine(e.Message);
+            Console.WriteLine(e.StackTrace);
+            Console.WriteLine(e.TargetSite);
+            Console.WriteLine(e.Source);
         }
     }
 }
