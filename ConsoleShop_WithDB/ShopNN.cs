@@ -5,18 +5,14 @@ namespace ConsoleShop_WithDB
     {
         protected override string Name { get; }
         protected override string Description { get; }
-        protected override Dictionary<Product, int> ProductsInShop { get; }
-        protected override Client Client { get; set; }
+        protected override Account Account { get; set; }
 
-        public ShopNN ()
+        internal ShopNN ()
         {
             Name = "Магазин \"Слизь Сизня\"";
             Description = "Нижегородское отделение лицензионной продукции по консольной РПГ \"Hero and SVIN\".";
             PlaceInShop = placeStatus.ВходВМагазин;
-            Client = new Client();
-            ProductsInShop = new Dictionary<Product, int> ();
-            DataBase.LoadDB();
-            GetProductsFromDB(DataBase.Data);
+            Account = new Account();
         }
     }
 }

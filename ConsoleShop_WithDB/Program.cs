@@ -1,4 +1,4 @@
-﻿
+﻿global using System.Collections;
 global using ConsoleShop_WithDB;
 global using Microsoft.Data.Sqlite;
 global using System.Data.SQLite;

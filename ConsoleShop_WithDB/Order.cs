@@ -1,10 +1,9 @@
 ﻿
+
 namespace ConsoleShop_WithDB
 {
-    internal class Order
+    internal class Order 
     {
-
-        internal int IdOrder { get; }
 
         internal int IdClient { get; }
 
@@ -14,13 +13,21 @@ namespace ConsoleShop_WithDB
 
         internal double Price { get; }
 
-        internal Order (int idOrder, int idClient, DateTime dateTimeOrder, Dictionary<Product, int> purchase, double price)
+        internal Order(DateTime dateTimeOrder, int idClient, Dictionary<Product, int> purchase, double price)
         {
-            IdOrder = idOrder;
             IdClient = idClient;
             DateTimeOrder = dateTimeOrder;
             Purchase = purchase;
             Price = price;
         }
+
+        internal Order(DateTime dateTimeOrder, int idClient, Dictionary<Product, int> purchase)
+        {
+            IdClient = idClient;
+            DateTimeOrder = dateTimeOrder;
+            Purchase = purchase;
+        }
+
     }
+        
 }

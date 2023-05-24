@@ -1,11 +1,13 @@
 ﻿
+using System.Numerics;
+
 namespace ConsoleShop_WithDB
 {
     internal abstract class Shop
     {
         protected virtual string Name { get; }
         protected virtual string Description { get; }
-        protected virtual Dictionary<Product, int> ProductsInShop { get; }
+        protected static Dictionary<Product, int> ProductsInShop { get; } = DataBase.LoadDB();
         internal placeStatus PlaceInShop { get; set; }
         internal enum placeStatus
         {
@@ -13,8 +15,7 @@ namespace ConsoleShop_WithDB
             ПереходНаГлавныйЭкран,
             ВКорзину
         }
-        protected virtual Client Client { get; set; }
-
+        protected virtual Account Account { get; set; }
 
         //Запуск магазина
         public virtual void StartShop()
@@ -25,7 +26,7 @@ namespace ConsoleShop_WithDB
                 Console.Clear();
                 PlaceInShop = placeStatus.ВходВМагазин;
 
-                if (Client.PurchaseStatus == Client.purchaseStatus.НоваяПокупка)
+                if (Account.PurchaseStatus == Account.purchaseStatus.НоваяПокупка)
                 {
                     Color.Cyan($"Добро пожаловать в {Name}!");
                     Color.Cyan($"{Description}");
@@ -33,25 +34,26 @@ namespace ConsoleShop_WithDB
                     while (true)
                     {
                         Console.WriteLine("Хотите начать покупку?");
-                        Console.WriteLine("[1] Да. \n[-1] Нет.");
+                        Console.WriteLine("[1] Да. \n[-1] Нет. \n[2]. Перейти в корзину. ");
+                        Console.WriteLine("[3] Войти в личный кабинет.");
                         answerWantToBuy = Feedback.PlayerAnswer();
 
-                        if (Feedback.CheckСonditions(answerWantToBuy, 1, 1, -1)) break;
+                        if (Feedback.CheckСonditions(answerWantToBuy, 3, 1, -1)) break;
                     }
                 }
 
                 // Если в корзине уже добавлен товар, начальное меню меняется
                 // (продолжить покупку, а не начать покупку - пока не отоваришь корзину)
-                if (Client.PurchaseStatus == Client.purchaseStatus.ПродуктыВкорзине)
+                if (Account.PurchaseStatus == Account.purchaseStatus.ПродуктыВкорзине)
                 {
                     while (true)
                     {
                         Color.Cyan("Хотите продолжить покупку?");
-                        Console.WriteLine("[1]. Продолжить покупки. \n[2]. Перейти в корзину. " +
+                        Console.WriteLine("[1]. Продолжить покупки. \n[2]. Перейти в корзину. \n[3] Войти в личный кабинет." +
                             "\n[-1]. Выйти из магазина.");
                         answerWantToBuy = Feedback.PlayerAnswer();
 
-                        if (Feedback.CheckСonditions(answerWantToBuy, 2, 1, -1)) break;
+                        if (Feedback.CheckСonditions(answerWantToBuy, 3, 1, -1)) break;
                     }
                 }
 
@@ -67,17 +69,26 @@ namespace ConsoleShop_WithDB
                     GoToBusket();
                 }
 
+                // Вход в аккаунт
+                if (answerWantToBuy == 3)
+                {
+                   if(CheckAuthorization())
+                   {
+                        GoToAccount();
+                   }
+                }
+
                 // выход из программы
-                if (answerWantToBuy == -1 || Client.PurchaseStatus == Client.purchaseStatus.ЗакончитьПокупку)
+                if (answerWantToBuy == -1 || Account.PurchaseStatus == Account.purchaseStatus.ЗакончитьПокупку)
                 {
                     Console.WriteLine("Всего доброго!");
                     break;
                 }
-            } 
+            }
         }
 
         //Начать покупку
-        protected virtual void StartPurchase ()
+        protected virtual void StartPurchase()
         {
             while (true)
             {
@@ -94,8 +105,8 @@ namespace ConsoleShop_WithDB
                 {
                     Color.Red("Все товары закончились. Вернитесь позже.");
                     Console.WriteLine();
-                    if (Client.PurchaseStatus != Client.purchaseStatus.ПродуктыВкорзине)
-                        Client.PurchaseStatus = Client.purchaseStatus.ЗакончитьПокупку;
+                    if (Account.PurchaseStatus != Account.purchaseStatus.ПродуктыВкорзине)
+                        Account.PurchaseStatus = Account.purchaseStatus.ЗакончитьПокупку;
 
                     Console.WriteLine($"Нажмите клавишу для продолжения.");
                     Console.ReadKey();
@@ -124,7 +135,7 @@ namespace ConsoleShop_WithDB
 
                 // переход к выбору товара из выбранной категории
                 SelectProduct(chosenCategory);
-            }        
+            }
         }
 
         // выбор товара из выбранной категории
@@ -198,7 +209,7 @@ namespace ConsoleShop_WithDB
                         numberOfProduct2++;
                     }
                 }
-                
+
             };
         }
 
@@ -236,7 +247,7 @@ namespace ConsoleShop_WithDB
                 int amountOfChosenProduct;
                 //покупка "оптом"
                 while (true)
-                {   
+                {
                     Color.Cyan($"Сколько штук товара \"{product.Name}\" вы хотите добавить в корзину?");
                     Color.Cyan($"На складе доступно \"{ProductsInShop[product]}\" шт.");
                     amountOfChosenProduct = Feedback.PlayerAnswer();
@@ -246,15 +257,15 @@ namespace ConsoleShop_WithDB
 
                 // добавление в корзину
                 // если данный товар уже есть в корзине - добавить к нему количества, иначе добавить новый товар
-                if (Client.Busket.ProductsInBusket.ContainsKey(product)) Client.Busket.ProductsInBusket[product] += amountOfChosenProduct;
-                else Client.Busket.ProductsInBusket.Add(product, amountOfChosenProduct);
+                if (Account.Busket.ProductsInBusket.ContainsKey(product)) Account.Busket.ProductsInBusket[product] += amountOfChosenProduct;
+                else Account.Busket.ProductsInBusket.Add(product, amountOfChosenProduct);
 
                 ProductsInShop[product] -= amountOfChosenProduct; // уменьшить количество товара в магазине
-                Client.PurchaseStatus = purchaseStatus.ПродуктыВкорзине;
+                Account.PurchaseStatus = Account.purchaseStatus.ПродуктыВкорзине;
                 PlaceInShop = placeStatus.ПереходНаГлавныйЭкран;
 
                 Color.Green($"{amountOfChosenProduct} шт товара \"{product.Name}\" добавлено в корзину.");
-                Console.WriteLine($"Стоимость всех товаров в корзине составляет {Client.Busket.TotalSum()}р.");
+                Console.WriteLine($"Стоимость всех товаров в корзине составляет {Account.Busket.TotalSum()}р.");
                 Console.WriteLine();
 
                 Console.WriteLine($"Нажмите клавишу для продолжения.");
@@ -268,20 +279,23 @@ namespace ConsoleShop_WithDB
         protected void GoToBusket()
         {
             while (true)
-            {                
+            {
                 // если покупка совершена - выход в начальный цикл                
                 if (PlaceInShop == placeStatus.ПереходНаГлавныйЭкран) break;
 
                 // если в корзине нет товаров - выход в начальный цикл
-                if (!Client.Busket.ProductsInBusket.Any())
+                if (!Account.Busket.ProductsInBusket.Any())
                 {
                     Color.Red("Корзина пуста! Для оформления покупки сперва добавьте товаров корзину.");
+
+                    Console.WriteLine($"Нажмите клавишу для продолжения.");
+                    Console.ReadKey();
                     break;
                 }
 
                 Color.Cyan("Вы находитесь в корзине!");
                 // информация о продуктах в корзине
-                Client.Busket.BusketInfo();
+                Account.Busket.BusketInfo();
 
                 //выбор действия в корзине
                 int answerInBusket;
@@ -298,10 +312,12 @@ namespace ConsoleShop_WithDB
                 //Перейти к оплате.
                 if (answerInBusket == 1)
                 {
-                    Client.PayPayment();
-                    if (!Client.Busket.ProductsInBusket.Any()) PlaceInShop = placeStatus.ПереходНаГлавныйЭкран;
+                    if (CheckAuthorization())
+                    {
+                        Account.PayPayment();
+                    }
+                    if (!Account.Busket.ProductsInBusket.Any()) PlaceInShop = placeStatus.ПереходНаГлавныйЭкран;
                 }
-
                 // удалить товар из корзины
                 else if (answerInBusket == 2)
                 {
@@ -318,7 +334,7 @@ namespace ConsoleShop_WithDB
             while (true)
             {
                 // информация о продуктах в корзине
-                Client.Busket.BusketInfo();
+                Account.Busket.BusketInfo();
 
                 //выбор товара на удаление из корзины
                 int answerIntRemoveProduct;
@@ -328,7 +344,7 @@ namespace ConsoleShop_WithDB
                     Color.Cyan("[-1]. Вернуться в корзину.");
                     answerIntRemoveProduct = Feedback.PlayerAnswer();
 
-                    if (Feedback.CheckСonditions(answerIntRemoveProduct, Client.Busket.ProductsInBusket.Count(), 1)) break;
+                    if (Feedback.CheckСonditions(answerIntRemoveProduct, Account.Busket.ProductsInBusket.Count(), 1)) break;
 
                     //[-1]. Вернуться в корзину.");
                     if (answerIntRemoveProduct == -1) return;
@@ -336,7 +352,7 @@ namespace ConsoleShop_WithDB
 
                 // получение списка продуктов, определение удаляемого товара
                 List<Product> productsList = new List<Product>();
-                foreach (var product in Client.Busket.ProductsInBusket)
+                foreach (var product in Account.Busket.ProductsInBusket)
                 {
                     productsList.Add(product.Key);
                 }
@@ -349,13 +365,13 @@ namespace ConsoleShop_WithDB
                     Color.Cyan("Введите количество товара, который вы хотите удалить: ");
                     removeAmount = Feedback.PlayerAnswer();
 
-                    if (Feedback.CheckСonditions(removeAmount, Client.Busket.ProductsInBusket[deleteProduct], 1)) break;                 
+                    if (Feedback.CheckСonditions(removeAmount, Account.Busket.ProductsInBusket[deleteProduct], 1)) break;
                 }
 
                 //удаление товара
                 // если удаляется не все количество товара в корзине - уменьшить количество, иначе удалить товар полностью
-                if (Client.Busket.ProductsInBusket[deleteProduct] > removeAmount) Client.Busket.ProductsInBusket[deleteProduct] -= removeAmount;
-                else Client.Busket.ProductsInBusket.Remove(deleteProduct);
+                if (Account.Busket.ProductsInBusket[deleteProduct] > removeAmount) Account.Busket.ProductsInBusket[deleteProduct] -= removeAmount;
+                else Account.Busket.ProductsInBusket.Remove(deleteProduct);
 
                 ProductsInShop[deleteProduct] += removeAmount;// добавление товара на полки магазина
 
@@ -363,34 +379,322 @@ namespace ConsoleShop_WithDB
                 Console.WriteLine();
 
                 // если из корзины удалены все товары
-                if (Client.Busket.ProductsInBusket.Count() == 0)
+                if (Account.Busket.ProductsInBusket.Count() == 0)
                 {
-                    Client.PurchaseStatus = purchaseStatus.НоваяПокупка;
+                    Account.PurchaseStatus = Account.purchaseStatus.НоваяПокупка;
                     PlaceInShop = placeStatus.ПереходНаГлавныйЭкран;
                     break;
-                }                
+                }
             }
         }
 
-        //преобразование данных бд в дикшинери ProductsInShop
-        protected virtual void GetProductsFromDB (DataSet data)
+        //проверка на авторизацию
+        protected virtual bool CheckAuthorization()
         {
-            foreach (DataRow row in data.Tables[0].Rows)
+            //если НЕавторизован
+            while (true)
             {
-                var cells = row.ItemArray;
+                if (Account.ClientStatus == Account.clientStatus.Аноним)
+                {
+                    Color.Red("Вы не авторизованы!");
+                    Console.WriteLine();
 
-                //проверка на нуль, и получение данных
-                long id = cells[0] != null ? (Int64)cells[0] : 0;
-                string name = cells[1] != null ? (string)cells[1] : "Неопределено";
-                string category = cells[2] != null ? (string)cells[2] : "Неопределено";
-                string description = cells[3] != null ? (string)cells[3] : "Неопределено";
-                string made = cells[4] != null ? (string)cells[4] : "Неопределено";
-                long price = cells[5] != null ? (Int64)cells[5] : 0;
-                long count = cells[6] != null ? (Int64)cells[6] : 0;
+                    //выбор действия в аккаунте
+                    int answerInAccount;
+                    while (true)
+                    {
+                        Color.Cyan("Выберите дальнейшее действие:");
+                        Console.WriteLine("[1]. Регистрация. \n[2]. Авторизация. " +
+                            "\n[-1]. Вернуться к покупкам. ");
+                        answerInAccount = Feedback.PlayerAnswer();
 
-                Product product = new Product((int)id, name, category, description, made, (int) price);
-                ProductsInShop.Add(product, (int) count);
+                        if (Feedback.CheckСonditions(answerInAccount, 2, 1, -1)) break;
+                    }
+
+                    //регистрация
+                    if (answerInAccount == 1)
+                    {
+                        Registration();
+                        break;
+                    }
+                    // авторизация
+                    else if (answerInAccount == 2)
+                    {
+                        Authorization();         
+                    }
+                    // -1 вернуться к покупкам
+                    else return false;
+                }
+                else return true;
             }
+            return false;
+        }
+
+        //регистрация
+        protected virtual void Registration()
+        {
+            while (true)
+            {
+                Console.Clear();
+
+                //введите ФИО
+                string answerFullName;
+                while (true)
+                {
+                    Color.Cyan("Введите ФИО: ");
+                    Color.Cyan("Для возврата к покупкам нажмите [-1]: ");
+                    answerFullName = Feedback.PlayerAnswerString();
+
+                    if (Feedback.CheckСonditionsString(answerFullName)) break;
+                }
+
+                //выход из регистрации
+                if (answerFullName == "-1") break;
+
+                //введите логин
+                string answerLogin;
+                while (true)
+                {
+                    Color.Cyan("Придумайте логин: ");
+                    answerLogin = Feedback.PlayerAnswerString();
+
+                    if (Feedback.CheckСonditionsString(answerLogin)) break;
+                }
+
+                //введите пароль
+                string answerPassword;
+                while (true)
+                {
+                    Color.Cyan("Придумайте пароль: ");
+                    answerPassword = Feedback.PlayerAnswerString();
+
+                    if (Feedback.CheckСonditionsString(answerPassword)) break;
+                }
+
+                //Проверка на наличие данного клиента в бд
+                int isHasClint;
+                using (SqliteConnection connection = new SqliteConnection(DataBase.connectionString))
+                {
+                    connection.Open();
+                    SqliteCommand command = new SqliteCommand();
+                    command.Connection = connection;
+                                        
+                    //Проверка на наличие данного клиента в бд
+                    command.CommandText = "SELECT Count(*) " +
+                        "FROM Clients " +
+                        "WHERE Clients.Login = @login;";
+
+                    SqliteParameter loginParam = new SqliteParameter("@login", answerLogin);
+                    command.Parameters.Add(loginParam);
+
+                    isHasClint = (int)(Int64)command.ExecuteScalar();
+                }
+
+                //Если клиента нет в бд - регистрация нового клиента
+                if (isHasClint == 0)
+                {
+                    using (SqliteConnection connection = new SqliteConnection(DataBase.connectionString))
+                    {
+                        connection.Open();
+                        SqliteCommand command = new SqliteCommand();
+                        command.Connection = connection;
+
+                        //Внести клиента в бд
+                        command.CommandText = "INSERT INTO Clients (FullName, Login, ClientPassword) VALUES " +
+                            "(@fullname, @login, @password);";
+
+                        SqliteParameter fullnameParam = new SqliteParameter("@fullname", answerFullName);
+                        SqliteParameter loginParam = new SqliteParameter("@login", answerLogin);
+                        SqliteParameter passwordParam = new SqliteParameter("@password", answerPassword);
+                        command.Parameters.Add(fullnameParam);
+                        command.Parameters.Add(loginParam);
+                        command.Parameters.Add(passwordParam);
+
+                        command.ExecuteNonQuery();
+
+                        Color.Green("Регистрация прошла успешно!");
+                        Console.WriteLine();
+
+                        Console.WriteLine($"Нажмите клавишу для продолжения.");
+                        Console.ReadKey();
+                        break;
+                    }
+                }
+                //Если логин/пароль заняты
+                else
+                {
+                    Color.Red("Введенный логин занят!");
+                    Console.WriteLine();
+
+                    Console.WriteLine($"Нажмите клавишу для продолжения.");
+                    Console.ReadKey();
+                }
+            }
+        }
+
+        //авторизация
+        protected virtual void Authorization()
+        {
+            while (true)
+            {
+                Console.Clear();
+
+                //введите логин
+                string answerLogin;
+                while (true)
+                {
+                    Color.Cyan("Введите логин: ");
+                    Color.Cyan("Для возврата к покупкам нажмите [-1]: ");
+                    answerLogin = Feedback.PlayerAnswerString();
+
+                    if (Feedback.CheckСonditionsString(answerLogin)) break;
+                }
+
+                //выход из авторизации
+                if (answerLogin == "-1") break;
+
+                //введите пароль
+                string answerPassword;
+                while (true)
+                {
+                    Color.Cyan("Введите пароль: ");
+                    answerPassword = Feedback.PlayerAnswerString();
+
+                    if (Feedback.CheckСonditionsString(answerPassword)) break;
+                }
+
+                //Проверка на наличие данного клиента в бд
+                int isHasClint;
+                using (SqliteConnection connection = new SqliteConnection(DataBase.connectionString))
+                {
+                    connection.Open();
+                    SqliteCommand command = new SqliteCommand();
+                    command.Connection = connection;
+
+                    //Проверка на наличие данного клиента в бд по логину/паролю
+                    command.CommandText = "SELECT Count(*) " +
+                        "FROM Clients " +
+                        "WHERE Clients.Login = @login AND Clients.ClientPassword = @password;";
+
+                    SqliteParameter loginParam = new SqliteParameter("@login", answerLogin);
+                    SqliteParameter passwordParam = new SqliteParameter("@password", answerPassword);
+                    command.Parameters.Add(loginParam);
+                    command.Parameters.Add(passwordParam);
+
+                    isHasClint = (int)(Int64)command.ExecuteScalar();
+                }
+
+                //Если клиент есть в бд - авторизация
+                if (isHasClint == 1)
+                {
+                    using (SqliteConnection connection = new SqliteConnection(DataBase.connectionString))
+                    {
+
+                        connection.Open();
+                        SqliteCommand command = new SqliteCommand();
+                        command.Connection = connection;
+
+                        //Получение id клиента
+                        command.CommandText = "SELECT Clients.Id, Clients.FullName " +
+                            "FROM Clients " +
+                            "WHERE Clients.Login = @login AND Clients.ClientPassword = @password ";
+
+                        SqliteParameter loginParam = new SqliteParameter("@login", answerLogin);
+                        SqliteParameter passwordParam = new SqliteParameter("@password", answerPassword);
+                        command.Parameters.Add(loginParam);
+                        command.Parameters.Add(passwordParam);
+
+                        SqliteDataReader reader = command.ExecuteReader();
+
+                        if (reader.HasRows)
+                        {
+                            //авторизация
+                            while (reader.Read())
+                            {
+                                int id = (int)(Int64)reader.GetValue(0);
+                                string name = (string)reader.GetValue(1);
+                                Account = new Account(id, name, (Busket)Account.Busket.Clone(), Account.PurchaseStatus);
+                            }
+                        }
+
+                        Color.Green("Авторизация прошла успешно!");
+                        Console.WriteLine();
+
+                        Console.WriteLine($"Нажмите клавишу для продолжения.");
+                        Console.ReadKey();
+                        break;
+                    }
+                }
+                //Если логин/пароль не подходят
+                else
+                {
+                    Color.Red("Введенные логин/пароль не подходят!");
+                    Console.WriteLine();
+
+                    Console.WriteLine($"Нажмите клавишу для продолжения.");
+                    Console.ReadKey();
+                }
+            }
+        }
+
+        //деавторизация
+        protected virtual void Deauthorization()
+        {
+            Account = new Account((Busket)Account.Busket.Clone(), Account.PurchaseStatus);
+
+            Color.Green("Выход из аккаунта произведен успешно!");
+            Console.WriteLine();
+
+            Console.WriteLine($"Нажмите клавишу для продолжения.");
+            Console.ReadKey();
+        }
+
+        // переход в аккаунт 
+        protected void GoToAccount()
+        {
+            Console.Clear();
+
+            while (true)
+            {
+                Color.Cyan("Вы находитесь в личном кабинете!");
+                Color.Cyan($"ФИО: {Account.ClientFullName}");
+
+                //выбор действия в корзине
+                int answerInAccount;
+                while (true)
+                {
+                    Color.Cyan("Выберите дальнейшее действие:");
+                    Console.WriteLine("[1]. Посмотреть историю заказов. \n[2]. Деавторизоваться. " +
+                        "\n[-1]. Вернуться к покупкам. ");
+                    answerInAccount = Feedback.PlayerAnswer();
+
+                    if (Feedback.CheckСonditions(answerInAccount, 2, 1, -1)) break;
+                }
+
+                //История заказов.
+                if (answerInAccount == 1)
+                {
+                    Account.HistoryPurchaseInfo();
+                }
+                // деавторизация
+                else if (answerInAccount == 2)
+                {
+                    Deauthorization();
+                    break;
+                }
+                // -1 вернуться к покупкам
+                else break;
+            }
+        }
+
+        //получение товара по id
+        internal static Product GetProductById (int id)
+        {
+            foreach (var product in ProductsInShop)
+            {
+                if (product.Key.Id == id) return product.Key;
+            }
+            return null;
         }
 
     }
