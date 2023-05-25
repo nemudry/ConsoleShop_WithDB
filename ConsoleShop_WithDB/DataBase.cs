@@ -14,12 +14,15 @@ namespace ConsoleShop_WithDB
             using (SqliteConnection connection = new SqliteConnection(connectionString))
             {
                 string command = "SELECT Products.Id, Products.Name, Products.Category, Products.Description, Products.Made, Products.Price," +
-                    "NN_Storehouse.ProductCount + MSC_Storehouse.ProductCount as AllProductCount " +
+                    "NN_Storehouse.ProductCount + MSC_Storehouse.ProductCount as AllProductCount, " +
+                    "IFNULL(Discounts.Discount, 0) as Discount " + // если скидки нет установить вместо null 0
                     "from NN_Storehouse " + //первый склад
                     "JOIN MSC_Storehouse " + //второй склад
                     "on MSC_Storehouse.ProductId = NN_Storehouse.ProductId " +
                     "JOIN Products " + //товары
-                    "on Products.Id = NN_Storehouse.ProductId "; 
+                    "on Products.Id = NN_Storehouse.ProductId " +
+                    "LEFT JOIN Discounts " + // скидки
+                    "on Discounts.ProductId = NN_Storehouse.ProductId "; 
 
                 SQLiteDataAdapter adapter = new SQLiteDataAdapter(command, connectionString);                
                 adapter.Fill(data);
@@ -32,16 +35,18 @@ namespace ConsoleShop_WithDB
                 var cells = row.ItemArray;
 
                 //проверка на нуль, и получение данных
-                long id = cells[0] != null ? (Int64)cells[0] : 0;
-                string name = cells[1] != null ? (string)cells[1] : "Неопределено";
-                string category = cells[2] != null ? (string)cells[2] : "Неопределено";
-                string description = cells[3] != null ? (string)cells[3] : "Неопределено";
-                string made = cells[4] != null ? (string)cells[4] : "Неопределено";
-                long price = cells[5] != null ? (Int64)cells[5] : 0;
-                long count = cells[6] != null ? (Int64)cells[6] : 0;
+                object id = cells[0] ?? 0;
+                object name = cells[1] ?? "Неопределено";
+                object category = cells[2] ?? "Неопределено";
+                object description = cells[3] ?? "Неопределено";
+                object made = cells[4] ?? "Неопределено";
+                object price = cells[5] ?? 0;
+                object count = cells[6] ?? 0;
+                object discount = cells[7] ?? 0;
 
-                Product product = new Product((int)id, name, category, description, made, (int)price);
-                ProductsInShop.Add(product, (int)count);
+                Product product = new Product((int)(Int64)id, (string)name, (string)category, (string)description, (string)made, 
+                    (int)(Int64)price, (int)(Int64)discount);
+                ProductsInShop.Add(product, (int)(Int64)count);
             }
             return ProductsInShop;            
         }
@@ -149,26 +154,17 @@ namespace ConsoleShop_WithDB
                     }
                 }
             }
-
-
-
-
-
-
-
-
-
         }
 
         //формирование заказа в БД
         internal static void SetOrderDB(Order order)
         {
             using (SqliteConnection connection = new SqliteConnection(connectionString))
-            {              
-                //через транзакцию, по каждому продукту в корзине
-                SqliteTransaction transaction = connection.BeginTransaction();
-
+            {     
                 connection.Open();
+
+                //через транзакцию, по каждому продукту в корзине 
+                SqliteTransaction transaction = connection.BeginTransaction();
                 SqliteCommand command = new SqliteCommand();
                 command.Connection = connection;
                 command.Transaction = transaction;
@@ -212,7 +208,6 @@ namespace ConsoleShop_WithDB
         //получение заказов из бд
         internal static List<Order> GetOrdersDB(int ClientId)
         {
-
             DataSet data = new DataSet();
 
             using (SQLiteConnection connection = new SQLiteConnection(connectionString))
@@ -254,6 +249,117 @@ namespace ConsoleShop_WithDB
                 orders.Add(order);
             }
             return orders;
+        }
+
+        //проверка наличия клиента в бд
+        internal static int CheckClientDB(string login, string password = null)
+        {
+            int isHasClint;
+
+            //проверка только по логину
+            if (password == null)
+            {                
+                using (SqliteConnection connection = new SqliteConnection(connectionString))
+                {
+                    connection.Open();
+                    SqliteCommand command = new SqliteCommand();
+                    command.Connection = connection;
+
+                    //Проверка на наличие данного клиента в бд
+                    command.CommandText = "SELECT Count(*) " +
+                        "FROM Clients " +
+                        "WHERE Clients.Login = @login;";
+
+                    SqliteParameter loginParam = new SqliteParameter("@login", login);
+                    command.Parameters.Add(loginParam);
+
+                    isHasClint = (int)(Int64)command.ExecuteScalar();
+                }
+            }
+            //проверка по логину/паролю
+            else
+            {
+                using (SqliteConnection connection = new SqliteConnection(connectionString))
+                {
+                    connection.Open();
+                    SqliteCommand command = new SqliteCommand();
+                    command.Connection = connection;
+
+                    //Проверка на наличие данного клиента в бд по логину/паролю
+                    command.CommandText = "SELECT Count(*) " +
+                        "FROM Clients " +
+                        "WHERE Clients.Login = @login AND Clients.ClientPassword = @password;";
+
+                    SqliteParameter loginParam = new SqliteParameter("@login", login);
+                    SqliteParameter passwordParam = new SqliteParameter("@password", password);
+                    command.Parameters.Add(loginParam);
+                    command.Parameters.Add(passwordParam);
+
+                    isHasClint = (int)(Int64)command.ExecuteScalar();
+                }
+            }
+            return isHasClint;
+        }
+
+        //регистрация нового клиента
+        internal static void SetNewClientDB(string fullName, string login, string password)
+        {
+            using (SqliteConnection connection = new SqliteConnection(connectionString))
+            {
+                connection.Open();
+                SqliteCommand command = new SqliteCommand();
+                command.Connection = connection;
+
+                //Внести клиента в бд
+                command.CommandText = "INSERT INTO Clients (FullName, Login, ClientPassword) VALUES " +
+                    "(@fullname, @login, @password);";
+
+                SqliteParameter fullnameParam = new SqliteParameter("@fullname", fullName);
+                SqliteParameter loginParam = new SqliteParameter("@login", login);
+                SqliteParameter passwordParam = new SqliteParameter("@password", password);
+                command.Parameters.Add(fullnameParam);
+                command.Parameters.Add(loginParam);
+                command.Parameters.Add(passwordParam);
+
+                command.ExecuteNonQuery();                           
+            }
+        }
+
+        //получение клиента из БД
+        internal static (int id, string name) GetClientDB (string login, string password)
+        {
+            int id = 0;
+            string name = null;
+            using (SqliteConnection connection = new SqliteConnection(connectionString))
+            {
+                connection.Open();
+                SqliteCommand command = new SqliteCommand();
+                command.Connection = connection;
+
+                //Получение id клиента
+                command.CommandText = "SELECT Clients.Id, Clients.FullName " +
+                    "FROM Clients " +
+                    "WHERE Clients.Login = @login AND Clients.ClientPassword = @password ";
+
+                SqliteParameter loginParam = new SqliteParameter("@login", login);
+                SqliteParameter passwordParam = new SqliteParameter("@password", password);
+                command.Parameters.Add(loginParam);
+                command.Parameters.Add(passwordParam);
+
+                SqliteDataReader reader = command.ExecuteReader();
+                
+                if (reader.HasRows)
+                {
+                    //авторизация
+                    while (reader.Read())
+                    {
+                        id = (int)(Int64)reader.GetValue(0);
+                        name = (string)reader.GetValue(1);                        
+                    }
+                }
+                reader.Close();
+            }
+            return (id, name);
         }
     }
 }

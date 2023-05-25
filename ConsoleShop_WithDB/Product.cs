@@ -8,16 +8,31 @@ namespace ConsoleShop_WithDB
         internal string Category { get; }
         internal string Description { get; }
         internal string Made { get; }
-        internal double Price { get; }
 
-        internal Product (int id, string name, string category, string description, string made, int price)
+        private double price;
+        internal double Price
+        {
+            get => price;
+            set
+            {
+                if (Discount != 0)
+                {
+                    price = value - value * (Discount / 100); // снижение цены на скидку
+                }
+                else price = value;
+            }
+        }
+        internal double Discount { get; }       
+
+        internal Product (int id, string name, string category, string description, string made, int price, int discount)
         {
             Id = id;
             Name = name;
             Category = category;
             Description = description;
             Made = made;
-            Price = price;            
+            Discount = discount;
+            Price = price;
         }
 
         internal void ProductInfo ()
@@ -25,7 +40,9 @@ namespace ConsoleShop_WithDB
             Color.Cyan("Характеристики выбранного товара:");
             Console.WriteLine($"{Description}");
             Console.WriteLine($"Cтрана-производитель - {Made}.");
-            Color.Green($"Цена - {Price}");
+            Color.GreenShort($"Цена - {Price}");
+            if (Discount != 0) Color.Green($" - СКИДКА {Discount}% !!!.");
+            else Console.WriteLine();
         }
     }
 }

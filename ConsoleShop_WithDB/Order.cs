@@ -1,10 +1,8 @@
 ﻿
-
 namespace ConsoleShop_WithDB
 {
     internal class Order 
     {
-
         internal int IdClient { get; }
 
         internal DateTime DateTimeOrder { get; }
@@ -27,7 +25,5 @@ namespace ConsoleShop_WithDB
             DateTimeOrder = dateTimeOrder;
             Purchase = purchase;
         }
-
-    }
-        
+    }        
 }

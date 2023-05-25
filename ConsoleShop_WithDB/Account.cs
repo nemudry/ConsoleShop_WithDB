@@ -73,18 +73,15 @@ namespace ConsoleShop_WithDB
                 //3. Оплата по карте.
                 if (answerPayment == 1)
                 {
-                    Color.Green($"Денежные средства в размере {Busket.TotalSum()}р списаны с Вашей банковской карты. Благодарим за покупку!");
-                    Console.WriteLine();
-
-                    Console.WriteLine($"Нажмите клавишу для продолжения.");
-                    Console.ReadKey();
-
                     //формирование заказа в бд
                     Order order = new Order(DateTime.Now, ClientId, Busket.ProductsInBusket);
                     DataBase.SetOrderDB(order);
 
                     //покупка товаров(уменьшение товара на складах)
                     DataBase.SetBuyProductsDB(Busket.ProductsInBusket);
+
+                    Color.Green($"Денежные средства в размере {Busket.TotalSum()}р списаны с Вашей банковской карты. Благодарим за покупку!");
+                    Feedback.ReadKey();
 
                     // очистить корзину
                     Busket.ProductsInBusket.Clear();
@@ -107,7 +104,7 @@ namespace ConsoleShop_WithDB
                 Color.Green("История заказов:");
                 Console.WriteLine();
 
-                //номера заказов
+                //номера заказов (даты)
                 var idOrders = HistoryPurchase.Select(e => e.DateTimeOrder).Distinct();
 
                 int numberOrder = 1;

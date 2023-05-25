@@ -50,5 +50,12 @@ namespace ConsoleShop_WithDB
             return answer;
         }
 
+        //ожидание нажатия клавиши
+        internal static void ReadKey()
+        {
+            Console.WriteLine();
+            Console.WriteLine($"Нажмите клавишу для продолжения.");
+            Console.ReadKey();
+        }
     }
 }

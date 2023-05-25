@@ -1,6 +1,4 @@
 ﻿
-using System.Numerics;
-
 namespace ConsoleShop_WithDB
 {
     internal abstract class Shop
@@ -34,8 +32,8 @@ namespace ConsoleShop_WithDB
                     while (true)
                     {
                         Console.WriteLine("Хотите начать покупку?");
-                        Console.WriteLine("[1] Да. \n[-1] Нет. \n[2]. Перейти в корзину. ");
-                        Console.WriteLine("[3] Войти в личный кабинет.");
+                        Console.WriteLine("[1]. Да. \n[-1]. Нет. \n[2]. Перейти в корзину. ");
+                        Console.WriteLine("[3]. Войти в личный кабинет.");
                         answerWantToBuy = Feedback.PlayerAnswer();
 
                         if (Feedback.CheckСonditions(answerWantToBuy, 3, 1, -1)) break;
@@ -49,7 +47,7 @@ namespace ConsoleShop_WithDB
                     while (true)
                     {
                         Color.Cyan("Хотите продолжить покупку?");
-                        Console.WriteLine("[1]. Продолжить покупки. \n[2]. Перейти в корзину. \n[3] Войти в личный кабинет." +
+                        Console.WriteLine("[1]. Продолжить покупки. \n[2]. Перейти в корзину. \n[3]. Войти в личный кабинет." +
                             "\n[-1]. Выйти из магазина.");
                         answerWantToBuy = Feedback.PlayerAnswer();
 
@@ -58,24 +56,15 @@ namespace ConsoleShop_WithDB
                 }
 
                 //Начать покупку
-                if (answerWantToBuy == 1)
-                {
-                    StartPurchase();
-                }
+                if (answerWantToBuy == 1) StartPurchase();
 
                 // В Корзину
-                if (answerWantToBuy == 2)
-                {
-                    GoToBusket();
-                }
+                if (answerWantToBuy == 2) GoToBusket();
 
                 // Вход в аккаунт
                 if (answerWantToBuy == 3)
                 {
-                   if(CheckAuthorization())
-                   {
-                        GoToAccount();
-                   }
+                   if(CheckAuthorization()) GoToAccount();
                 }
 
                 // выход из программы
@@ -104,12 +93,10 @@ namespace ConsoleShop_WithDB
                 if (categories.Count() == 0)
                 {
                     Color.Red("Все товары закончились. Вернитесь позже.");
-                    Console.WriteLine();
                     if (Account.PurchaseStatus != Account.purchaseStatus.ПродуктыВкорзине)
                         Account.PurchaseStatus = Account.purchaseStatus.ЗакончитьПокупку;
 
-                    Console.WriteLine($"Нажмите клавишу для продолжения.");
-                    Console.ReadKey();
+                    Feedback.ReadKey();
                     break;
                 }
 
@@ -157,18 +144,13 @@ namespace ConsoleShop_WithDB
                 {
                     numberOfProduct++;
                     Console.Write($"{numberOfProduct}. {product.Name}, ");
-                    if (ProductsInShop[product] != 0) Console.WriteLine($"количество на складе: {ProductsInShop[product]} шт.");
-                    else Color.Red($"отсутствует в наличии.");
-
-                    // показ скидки
-                    /*
-                    if (product is IDiscountable discProd)
+                    if (ProductsInShop[product] != 0)
                     {
-                        Console.Write($" - ");
-                        Color.GreenShort($"СКИДКА {discProd.Discount}% !!!");
+                        Console.Write($"количество на складе: {ProductsInShop[product]} шт.");
+                        if (product.Discount != 0) Color.Green($" - СКИДКА {product.Discount}% !!!.");
+                        else Console.WriteLine();
                     }
-                    Console.WriteLine();
-                    */
+                    else Color.Red($"отсутствует в наличии.");
                 }
                 Console.WriteLine();
 
@@ -209,8 +191,7 @@ namespace ConsoleShop_WithDB
                         numberOfProduct2++;
                     }
                 }
-
-            };
+            }
         }
 
         //описание товара и добавление его в корзину
@@ -220,16 +201,17 @@ namespace ConsoleShop_WithDB
 
             // показ карточки товара
             product.ProductInfo();
-            if (ProductsInShop[product] != 0) Color.Green($"Количество на складе: {ProductsInShop[product]} шт.");
+            if (ProductsInShop[product] != 0)
+            {
+                Color.Green($"Количество на складе: {ProductsInShop[product]} шт.");
+                Console.WriteLine();
+            }
             else
             {
                 Color.Red($"Отсутствует в наличии. Вернитесь позже.");
-
-                Console.WriteLine($"Нажмите клавишу для продолжения.");
-                Console.ReadKey();
+                Feedback.ReadKey();
                 return;
             }
-            Console.WriteLine();
 
             int addToBusket;
             while (true)
@@ -257,7 +239,8 @@ namespace ConsoleShop_WithDB
 
                 // добавление в корзину
                 // если данный товар уже есть в корзине - добавить к нему количества, иначе добавить новый товар
-                if (Account.Busket.ProductsInBusket.ContainsKey(product)) Account.Busket.ProductsInBusket[product] += amountOfChosenProduct;
+                if (Account.Busket.ProductsInBusket.ContainsKey(product)) 
+                    Account.Busket.ProductsInBusket[product] += amountOfChosenProduct;
                 else Account.Busket.ProductsInBusket.Add(product, amountOfChosenProduct);
 
                 ProductsInShop[product] -= amountOfChosenProduct; // уменьшить количество товара в магазине
@@ -266,10 +249,7 @@ namespace ConsoleShop_WithDB
 
                 Color.Green($"{amountOfChosenProduct} шт товара \"{product.Name}\" добавлено в корзину.");
                 Console.WriteLine($"Стоимость всех товаров в корзине составляет {Account.Busket.TotalSum()}р.");
-                Console.WriteLine();
-
-                Console.WriteLine($"Нажмите клавишу для продолжения.");
-                Console.ReadKey();
+                Feedback.ReadKey();
             }
             // 2 - Вернуться к выбору товара.
             else return;
@@ -287,9 +267,7 @@ namespace ConsoleShop_WithDB
                 if (!Account.Busket.ProductsInBusket.Any())
                 {
                     Color.Red("Корзина пуста! Для оформления покупки сперва добавьте товаров корзину.");
-
-                    Console.WriteLine($"Нажмите клавишу для продолжения.");
-                    Console.ReadKey();
+                    Feedback.ReadKey();
                     break;
                 }
 
@@ -471,63 +449,22 @@ namespace ConsoleShop_WithDB
                     if (Feedback.CheckСonditionsString(answerPassword)) break;
                 }
 
-                //Проверка на наличие данного клиента в бд
-                int isHasClint;
-                using (SqliteConnection connection = new SqliteConnection(DataBase.connectionString))
-                {
-                    connection.Open();
-                    SqliteCommand command = new SqliteCommand();
-                    command.Connection = connection;
-                                        
-                    //Проверка на наличие данного клиента в бд
-                    command.CommandText = "SELECT Count(*) " +
-                        "FROM Clients " +
-                        "WHERE Clients.Login = @login;";
-
-                    SqliteParameter loginParam = new SqliteParameter("@login", answerLogin);
-                    command.Parameters.Add(loginParam);
-
-                    isHasClint = (int)(Int64)command.ExecuteScalar();
-                }
+                //Проверка на наличие данного клиента в бд        
+                int isHasClint = DataBase.CheckClientDB(answerLogin);
 
                 //Если клиента нет в бд - регистрация нового клиента
                 if (isHasClint == 0)
                 {
-                    using (SqliteConnection connection = new SqliteConnection(DataBase.connectionString))
-                    {
-                        connection.Open();
-                        SqliteCommand command = new SqliteCommand();
-                        command.Connection = connection;
-
-                        //Внести клиента в бд
-                        command.CommandText = "INSERT INTO Clients (FullName, Login, ClientPassword) VALUES " +
-                            "(@fullname, @login, @password);";
-
-                        SqliteParameter fullnameParam = new SqliteParameter("@fullname", answerFullName);
-                        SqliteParameter loginParam = new SqliteParameter("@login", answerLogin);
-                        SqliteParameter passwordParam = new SqliteParameter("@password", answerPassword);
-                        command.Parameters.Add(fullnameParam);
-                        command.Parameters.Add(loginParam);
-                        command.Parameters.Add(passwordParam);
-
-                        command.ExecuteNonQuery();
-
-                        Color.Green("Регистрация прошла успешно!");
-                        Console.WriteLine();
-
-                        Console.WriteLine($"Нажмите клавишу для продолжения.");
-                        Console.ReadKey();
-                        break;
-                    }
+                    DataBase.SetNewClientDB(answerFullName, answerLogin, answerPassword);
+                    Color.Green("Регистрация прошла успешно!");
+                    Feedback.ReadKey();
+                    break;
                 }
                 //Если логин/пароль заняты
                 else
                 {
-                    Color.Red("Введенный логин занят!");
-                    Console.WriteLine();
-
-                    Console.WriteLine($"Нажмите клавишу для продолжения.");
-                    Console.ReadKey();
+                    Color.Red("Введенный логин занят!"); 
+                    Feedback.ReadKey();
                 }
             }
         }
@@ -564,75 +501,22 @@ namespace ConsoleShop_WithDB
                 }
 
                 //Проверка на наличие данного клиента в бд
-                int isHasClint;
-                using (SqliteConnection connection = new SqliteConnection(DataBase.connectionString))
-                {
-                    connection.Open();
-                    SqliteCommand command = new SqliteCommand();
-                    command.Connection = connection;
-
-                    //Проверка на наличие данного клиента в бд по логину/паролю
-                    command.CommandText = "SELECT Count(*) " +
-                        "FROM Clients " +
-                        "WHERE Clients.Login = @login AND Clients.ClientPassword = @password;";
-
-                    SqliteParameter loginParam = new SqliteParameter("@login", answerLogin);
-                    SqliteParameter passwordParam = new SqliteParameter("@password", answerPassword);
-                    command.Parameters.Add(loginParam);
-                    command.Parameters.Add(passwordParam);
-
-                    isHasClint = (int)(Int64)command.ExecuteScalar();
-                }
+                int isHasClint = DataBase.CheckClientDB(answerLogin, answerPassword);    
 
                 //Если клиент есть в бд - авторизация
                 if (isHasClint == 1)
                 {
-                    using (SqliteConnection connection = new SqliteConnection(DataBase.connectionString))
-                    {
-
-                        connection.Open();
-                        SqliteCommand command = new SqliteCommand();
-                        command.Connection = connection;
-
-                        //Получение id клиента
-                        command.CommandText = "SELECT Clients.Id, Clients.FullName " +
-                            "FROM Clients " +
-                            "WHERE Clients.Login = @login AND Clients.ClientPassword = @password ";
-
-                        SqliteParameter loginParam = new SqliteParameter("@login", answerLogin);
-                        SqliteParameter passwordParam = new SqliteParameter("@password", answerPassword);
-                        command.Parameters.Add(loginParam);
-                        command.Parameters.Add(passwordParam);
-
-                        SqliteDataReader reader = command.ExecuteReader();
-
-                        if (reader.HasRows)
-                        {
-                            //авторизация
-                            while (reader.Read())
-                            {
-                                int id = (int)(Int64)reader.GetValue(0);
-                                string name = (string)reader.GetValue(1);
-                                Account = new Account(id, name, (Busket)Account.Busket.Clone(), Account.PurchaseStatus);
-                            }
-                        }
-
-                        Color.Green("Авторизация прошла успешно!");
-                        Console.WriteLine();
-
-                        Console.WriteLine($"Нажмите клавишу для продолжения.");
-                        Console.ReadKey();
-                        break;
-                    }
+                    var client =  DataBase.GetClientDB(answerLogin, answerPassword);
+                    Account = new Account(client.id, client.name, new Busket(Account.Busket.ProductsInBusket), Account.PurchaseStatus);
+                    Color.Green("Авторизация прошла успешно!");
+                    Feedback.ReadKey();
+                    break;
                 }
                 //Если логин/пароль не подходят
                 else
                 {
                     Color.Red("Введенные логин/пароль не подходят!");
-                    Console.WriteLine();
-
-                    Console.WriteLine($"Нажмите клавишу для продолжения.");
-                    Console.ReadKey();
+                    Feedback.ReadKey();
                 }
             }
         }
@@ -640,13 +524,10 @@ namespace ConsoleShop_WithDB
         //деавторизация
         protected virtual void Deauthorization()
         {
-            Account = new Account((Busket)Account.Busket.Clone(), Account.PurchaseStatus);
+            Account = new Account(new Busket(Account.Busket.ProductsInBusket), Account.PurchaseStatus);
 
             Color.Green("Выход из аккаунта произведен успешно!");
-            Console.WriteLine();
-
-            Console.WriteLine($"Нажмите клавишу для продолжения.");
-            Console.ReadKey();
+            Feedback.ReadKey();
         }
 
         // переход в аккаунт 
@@ -696,6 +577,5 @@ namespace ConsoleShop_WithDB
             }
             return null;
         }
-
     }
 }

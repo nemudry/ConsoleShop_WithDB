@@ -1,16 +1,16 @@
 ﻿
-using Azure;
-using System;
-
 namespace ConsoleShop_WithDB
 {
-    internal class Busket : ICloneable
+    internal class Busket
     {
-        internal Dictionary<Product, int> ProductsInBusket { get; set; }
-
+        internal Dictionary<Product, int> ProductsInBusket { get; }
         internal Busket()
         {
             ProductsInBusket = new Dictionary<Product, int>();
+        }
+        internal Busket(Dictionary<Product, int> productsInBusket)
+        {
+            ProductsInBusket = productsInBusket;
         }
 
         // общая цена товаров в корзине
@@ -40,11 +40,5 @@ namespace ConsoleShop_WithDB
             Console.WriteLine($"Стоимость всех товаров в корзине составляет {TotalSum()}р.");
             Console.WriteLine();
         }
-
-        public object Clone()
-        {
-           return new Busket() { ProductsInBusket = this.ProductsInBusket };
-        }
     }
-
 }
