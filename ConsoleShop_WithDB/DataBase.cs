@@ -1,32 +1,67 @@
-﻿
+﻿using System.Data.Common;
+using System.Configuration;
+using System.Data.SQLite;
+using Microsoft.Data.SqlClient;
+using System.Data;
+
 namespace ConsoleShop_WithDB
-{
+{    
     internal static class DataBase
     {
-        //расположение базы данных SQLite
-        internal const string connectionString = $"Data Source = D:\\Source\\ConsoleShop_WithDB\\ConsoleShop_WithDB\\ShopDB.db";
+        static DataBase ()
+        {
+            DbProviderFactories.RegisterFactory("SQLite", System.Data.SQLite.SQLiteFactory.Instance);
+            DbProviderFactories.RegisterFactory("SqlServer", Microsoft.Data.SqlClient.SqlClientFactory.Instance);
+
+            //Данные о поставщике СУБД и строка подключения - в конфиг.файле
+            string provider = ConfigurationManager.AppSettings["provider"];
+            _connectionString = ConfigurationManager.ConnectionStrings[provider].ConnectionString;
+
+            Factory = DbProviderFactories.GetFactory(provider);
+        }        
+        private static readonly DbProviderFactory Factory;
+        private static readonly string _connectionString;
+        private static DbConnection Connection { get; set; }
+
 
         //Загрузка базы данных 
         internal static Dictionary<Product, int> LoadDB()
         {
-            DataSet data = new DataSet();            
+            DataSet data = new DataSet();
 
-            using (SqliteConnection connection = new SqliteConnection(connectionString))
-            {
-                string command = "SELECT Products.Id, Products.Name, Products.Category, Products.Description, Products.Made, Products.Price," +
-                    "NN_Storehouse.ProductCount + MSC_Storehouse.ProductCount as AllProductCount, " +
-                    "IFNULL(Discounts.Discount, 0) as Discount " + // если скидки нет установить вместо null 0
+            OpenConn();
+            using (DbCommand command = Factory.CreateCommand())
+            {                
+                command.Connection = Connection;
+                command.CommandText = "SELECT Products.Id, Products.Name, Products.Category, Products.Description, Products.Made, Products.Price," +
+                    "NN_Storehouse.ProductCount + MSC_Storehouse.ProductCount as AllProductCount, " + 
+                    "ISNULL(Discounts.Discount, 0) as Discount " + // если скидки нет установить вместо null 0
                     "from NN_Storehouse " + //первый склад
                     "JOIN MSC_Storehouse " + //второй склад
                     "on MSC_Storehouse.ProductId = NN_Storehouse.ProductId " +
                     "JOIN Products " + //товары
                     "on Products.Id = NN_Storehouse.ProductId " +
                     "LEFT JOIN Discounts " + // скидки
-                    "on Discounts.ProductId = NN_Storehouse.ProductId "; 
+                    "on Discounts.ProductId = NN_Storehouse.ProductId ";
 
-                SQLiteDataAdapter adapter = new SQLiteDataAdapter(command, connectionString);                
+                command.CommandText = "SELECT Products.Id, Products.Name, Products.Category, Products.Description, Products.Made, Products.Price," +
+                    "NN_Storehouse.ProductCount + MSC_Storehouse.ProductCount as AllProductCount, ";
+                if (Factory is SQLiteFactory) command.CommandText += "IFNULL(Discounts.Discount, 0) as Discount "; // если скидки нет установить вместо null 0
+                else if (Connection is SqlClientFactory) command.CommandText += "ISNULL(Discounts.Discount, 0) as Discount "; //различие в языке запроса SQL - ifnull isnull
+                else command.CommandText += "Discounts.Discount ";
+                command.CommandText +=  "from NN_Storehouse " + //первый склад
+                      "JOIN MSC_Storehouse " + //второй склад
+                     "on MSC_Storehouse.ProductId = NN_Storehouse.ProductId " +
+                      "JOIN Products " + //товары
+                      "on Products.Id = NN_Storehouse.ProductId " +
+                      "LEFT JOIN Discounts " + // скидки
+                      "on Discounts.ProductId = NN_Storehouse.ProductId ";
+
+                DbDataAdapter adapter = Factory.CreateDataAdapter();
+                adapter.SelectCommand = command;
                 adapter.Fill(data);
             }
+            CloseConn();
 
             //преобразование данных бд в дикшинери ProductsInShop
             Dictionary<Product, int> ProductsInShop = new Dictionary<Product, int>();
@@ -35,18 +70,27 @@ namespace ConsoleShop_WithDB
                 var cells = row.ItemArray;
 
                 //проверка на нуль, и получение данных
-                object id = cells[0] ?? 0;
-                object name = cells[1] ?? "Неопределено";
-                object category = cells[2] ?? "Неопределено";
-                object description = cells[3] ?? "Неопределено";
-                object made = cells[4] ?? "Неопределено";
-                object price = cells[5] ?? 0;
-                object count = cells[6] ?? 0;
-                object discount = cells[7] ?? 0;
+                object idObj = cells[0] ?? 0;
+                object nameObj = cells[1] ?? "Неопределено";
+                object categoryObj = cells[2] ?? "Неопределено";
+                object descriptionObj = cells[3] ?? "Неопределено";
+                object madeObj = cells[4] ?? "Неопределено";
+                object priceObj = cells[5] ?? 0;
+                object countObj = cells[6] ?? 0;
+                object discountObj = cells[7] ?? 0;
 
-                Product product = new Product((int)(Int64)id, (string)name, (string)category, (string)description, (string)made, 
-                    (int)(Int64)price, (int)(Int64)discount);
-                ProductsInShop.Add(product, (int)(Int64)count);
+                //приведение в зависимости от типа хранимых данных
+                ParseData(idObj, out int id, out string _);
+                ParseData(nameObj, out int _, out string name);
+                ParseData(categoryObj, out int _, out string category);
+                ParseData(descriptionObj, out int _, out string description);
+                ParseData(madeObj, out int _, out string made);
+                ParseData(priceObj, out int price, out string _);
+                ParseData(countObj, out int count, out string _);
+                ParseData(discountObj, out int discount, out string _);
+
+                Product product = new Product(id, name, category, description, made, price, discount);
+                ProductsInShop.Add(product, count);
             }
             return ProductsInShop;            
         }
@@ -56,10 +100,12 @@ namespace ConsoleShop_WithDB
         {
             DataSet data = new DataSet();
 
-            using (SqliteConnection connection = new SqliteConnection(connectionString))
+            OpenConn();
+            using (DbCommand command = Factory.CreateCommand())
             {
+                command.Connection = Connection;
                 //получение общих данных по количеству товара на разных складах
-                string command = "SELECT NN_Storehouse.ProductId, Products.Name, " +
+                command.CommandText = "SELECT NN_Storehouse.ProductId, Products.Name, " +
                     "NN_Storehouse.ProductCount as ProductCountNN, MSC_Storehouse.ProductCount as ProductCountMSC, " +
                     "NN_Storehouse.ProductCount + MSC_Storehouse.ProductCount as ProductCountAll " +
                     "FROM NN_Storehouse " +
@@ -68,9 +114,11 @@ namespace ConsoleShop_WithDB
                     "JOIN Products " +
                     "on Products.Id = NN_Storehouse.ProductId ";
 
-                SQLiteDataAdapter adapter = new SQLiteDataAdapter(command, connectionString);
+                DbDataAdapter adapter = Factory.CreateDataAdapter();
+                adapter.SelectCommand = command;
                 adapter.Fill(data);
             }
+            CloseConn();
 
             //фильтрация данных и получение листка productCountInStorehouses
             List<(Product, int, int)> productCountInStorehouses = new List<(Product, int, int)>();
@@ -78,12 +126,21 @@ namespace ConsoleShop_WithDB
             {
                 foreach (DataRow row in data.Tables[0].Rows)
                 {
-                    int id = (int)(Int64)row[0];
+                    //получение данных
+                    object idObj = row[0];
+
+                    //приведение
+                    ParseData(idObj, out int id, out string _);
 
                     if (id == product.Key.Id)
                     {
-                        int countNN = (int)(Int64)row[2]; //количество товара на первом складе
-                        int countMSC = (int)(Int64)row[3]; //количество товара на втором складе
+                        object countNNObj = row[2]; //количество товара на первом складе
+                        object countMSCObj = row[3]; //количество товара на втором складе
+
+                        //приведение
+                        ParseData(countNNObj, out int countNN, out string _);
+                        ParseData(countMSCObj, out int countMSC, out string _);
+
                         productCountInStorehouses.Add((product.Key, countNN, countMSC));
                         break;
                     }
@@ -100,34 +157,36 @@ namespace ConsoleShop_WithDB
                         //если на ближайшем складе достаточно товара
                         if (prod.Item2 >= product.Value)
                         {
-                            using (SqliteConnection connection = new SqliteConnection(connectionString))
+                            OpenConn();
+                            using (DbCommand command = Factory.CreateCommand())
                             {
-                                connection.Open();
-                                SqliteCommand command = new SqliteCommand();
-                                command.Connection = connection;
-
+                                command.Connection = Connection;
                                 //уменьшение товара на ближайшем складе
                                 command.CommandText = "UPDATE NN_Storehouse " +
                                     "SET ProductCount = ProductCount - @prodBuyCount " +
                                     "WHERE ProductId = @prodBuyId;";
 
-                                SqliteParameter idParam = new SqliteParameter("@prodBuyId", product.Key.Id);
-                                SqliteParameter countParam = new SqliteParameter("@prodBuyCount", product.Value);
+                                DbParameter idParam = Factory.CreateParameter();
+                                idParam.ParameterName = "@prodBuyId";
+                                idParam.Value = product.Key.Id;
                                 command.Parameters.Add(idParam);
+
+                                DbParameter countParam = Factory.CreateParameter();
+                                countParam.ParameterName = "@prodBuyCount";
+                                countParam.Value = product.Value;
                                 command.Parameters.Add(countParam);
 
                                 command.ExecuteNonQuery();
                             }
+                            CloseConn();
                         }
                         //если на ближайшем складе НЕдостаточно товара
                         else
                         {
-                            using (SqliteConnection connection = new SqliteConnection(connectionString))
+                            OpenConn();
+                            using (DbCommand command = Factory.CreateCommand())
                             {
-                                connection.Open();
-                                SqliteCommand command = new SqliteCommand();
-                                command.Connection = connection;
-
+                                command.Connection = Connection;
                                 //уменьшение товара на обоих складе
                                 command.CommandText = "UPDATE NN_Storehouse " +
                                     "SET ProductCount = ProductCount - @prodBuyCountNN " +
@@ -136,19 +195,27 @@ namespace ConsoleShop_WithDB
                                     "SET ProductCount = ProductCount - @prodBuyCountMSC " +
                                     "WHERE ProductId = @prodBuyId;";
 
-                                SqliteParameter idParam = new SqliteParameter("@prodBuyId", product.Key.Id);
+                                DbParameter idParam = Factory.CreateParameter();
+                                idParam.ParameterName = "@prodBuyId";
+                                idParam.Value = product.Key.Id;
+                                command.Parameters.Add(idParam);
+
                                 // с первого слада NN берется сколько есть
-                                SqliteParameter countNNParam = new SqliteParameter("@prodBuyCountNN", prod.Item2);
+                                DbParameter countNNParam = Factory.CreateParameter();
+                                countNNParam.ParameterName = "@prodBuyCountNN";
+                                countNNParam.Value = prod.Item2;
+                                command.Parameters.Add(countNNParam);
+
                                 // со второго склада MSC добирается остаток
                                 order[product.Key] -= prod.Item2;
-                                SqliteParameter countMSCParam = new SqliteParameter("@prodBuyCountMSC", order[product.Key]);
-
-                                command.Parameters.Add(idParam);
-                                command.Parameters.Add(countNNParam);
+                                DbParameter countMSCParam = Factory.CreateParameter();
+                                countMSCParam.ParameterName = "@prodBuyCountMSC";
+                                countMSCParam.Value = order[product.Key];
                                 command.Parameters.Add(countMSCParam);
 
                                 command.ExecuteNonQuery();
                             }
+                            CloseConn();
                         }
                         break;
                     }
@@ -159,14 +226,13 @@ namespace ConsoleShop_WithDB
         //формирование заказа в БД
         internal static void SetOrderDB(Order order)
         {
-            using (SqliteConnection connection = new SqliteConnection(connectionString))
-            {     
-                connection.Open();
+            OpenConn();
+            using (DbCommand command = Factory.CreateCommand())
+            {
 
                 //через транзакцию, по каждому продукту в корзине 
-                SqliteTransaction transaction = connection.BeginTransaction();
-                SqliteCommand command = new SqliteCommand();
-                command.Connection = connection;
+                DbTransaction transaction = Connection.BeginTransaction();
+                command.Connection = Connection;
                 command.Transaction = transaction;
                 
                 try
@@ -179,16 +245,29 @@ namespace ConsoleShop_WithDB
                             $"(@dateOrder{numberProduct}, @clientId{numberProduct}, @productId{numberProduct}, " +
                             $"@countProduct{numberProduct}, @price{numberProduct})";
 
-                        SqliteParameter dateParam = new SqliteParameter($"@dateOrder{numberProduct}", order.DateTimeOrder);
-                        SqliteParameter clientIdParam = new SqliteParameter($"@clientId{numberProduct}", order.IdClient);
-                        SqliteParameter productIdParam = new SqliteParameter($"@productId{numberProduct}", product.Key.Id);
-                        SqliteParameter countProductParam = new SqliteParameter($"@countProduct{numberProduct}", product.Value);
-                        SqliteParameter priceParam = new SqliteParameter($"@price{numberProduct}", product.Value * product.Key.Price);
-
+                        DbParameter dateParam = Factory.CreateParameter();
+                        dateParam.ParameterName = $"@dateOrder{numberProduct}";
+                        dateParam.Value = order.DateTimeOrder;
                         command.Parameters.Add(dateParam);
+
+                        DbParameter clientIdParam = Factory.CreateParameter();
+                        clientIdParam.ParameterName = $"@clientId{numberProduct}";
+                        clientIdParam.Value = order.IdClient;
                         command.Parameters.Add(clientIdParam);
+
+                        DbParameter productIdParam = Factory.CreateParameter();
+                        productIdParam.ParameterName = $"@productId{numberProduct}";
+                        productIdParam.Value = product.Key.Id;
                         command.Parameters.Add(productIdParam);
+
+                        DbParameter countProductParam = Factory.CreateParameter();
+                        countProductParam.ParameterName = $"@countProduct{numberProduct}";
+                        countProductParam.Value = product.Value;
                         command.Parameters.Add(countProductParam);
+
+                        DbParameter priceParam = Factory.CreateParameter();
+                        priceParam.ParameterName = $"@price{numberProduct}";
+                        priceParam.Value = product.Value * product.Key.Price;
                         command.Parameters.Add(priceParam);
 
                         command.ExecuteNonQuery();
@@ -202,6 +281,10 @@ namespace ConsoleShop_WithDB
                     transaction.Rollback();
                     Console.ReadKey();
                 }
+                finally
+                {
+                    CloseConn();
+                }
             }  
         }
 
@@ -210,23 +293,24 @@ namespace ConsoleShop_WithDB
         {
             DataSet data = new DataSet();
 
-            using (SQLiteConnection connection = new SQLiteConnection(connectionString))
+            OpenConn();
+            using (DbCommand command = Factory.CreateCommand())
             {
-                connection.Open();
-                SQLiteDataAdapter adapter = new SQLiteDataAdapter();
-
-                SQLiteCommand command = new SQLiteCommand();
-                command.Connection = connection;
+                command.Connection = Connection;
                 command.CommandText = "SELECT * " +
                     "FROM Orders " +
                     "WHERE Orders.ClientId = @idClient";
 
-                SQLiteParameter idParam = new SQLiteParameter("@idClient", ClientId);
+                DbParameter idParam = Factory.CreateParameter();
+                idParam.ParameterName = "@idClient";
+                idParam.Value = ClientId;
                 command.Parameters.Add(idParam);
 
+                DbDataAdapter adapter = Factory.CreateDataAdapter();
                 adapter.SelectCommand = command;
                 adapter.Fill(data);
             }
+            CloseConn();
 
             //преобразование данных бд в листок заказов
             List<Order> orders = new List<Order>();
@@ -235,11 +319,18 @@ namespace ConsoleShop_WithDB
                 var cells = row.ItemArray;
 
                 //проверка на нуль, и получение данных
-                DateTime date = cells[1] != null ? DateTime.Parse((string)cells[1]) : DateTime.MinValue;
-                int idClient = cells[2] != null ? (int)(Int64)cells[2] : 0;
-                int idProduct = cells[3] != null ? (int)(Int64)cells[3] : 0;
-                int count = cells[4] != null ? (int)(Int64)cells[4] : 0;
-                int price = cells[5] != null ? (int)(Int64)cells[5] : 0;
+                object dateObj = cells[1] ?? "Неопределено";
+                object idClientObj = cells[2] ?? 0;
+                object idProductObj = cells[3] ?? 0;
+                object countObj = cells[4] ?? 0;
+                object priceObj = cells[5] ?? 0;
+
+                //приведение в зависимости от типа хранимых данных
+                DateTime date = (string)dateObj == "Неопределено" ? DateTime.MinValue : DateTime.Parse((string)dateObj);
+                ParseData(idClientObj, out int idClient, out string _);
+                ParseData(idProductObj, out int idProduct, out string _);
+                ParseData(countObj, out int count, out string _);
+                ParseData(priceObj, out int price, out string _);
 
                 Dictionary<Product, int> purchase = new Dictionary<Product, int>();
                 Product product = Shop.GetProductById(idProduct);
@@ -254,75 +345,89 @@ namespace ConsoleShop_WithDB
         //проверка наличия клиента в бд
         internal static int CheckClientDB(string login, string password = null)
         {
-            int isHasClint;
+            int isHasClient;
 
             //проверка только по логину
             if (password == null)
-            {                
-                using (SqliteConnection connection = new SqliteConnection(connectionString))
+            {
+                OpenConn();
+                using (DbCommand command = Factory.CreateCommand())
                 {
-                    connection.Open();
-                    SqliteCommand command = new SqliteCommand();
-                    command.Connection = connection;
-
+                    command.Connection = Connection;   
                     //Проверка на наличие данного клиента в бд
                     command.CommandText = "SELECT Count(*) " +
                         "FROM Clients " +
                         "WHERE Clients.Login = @login;";
-
-                    SqliteParameter loginParam = new SqliteParameter("@login", login);
+                    
+                    DbParameter loginParam = Factory.CreateParameter();
+                    loginParam.ParameterName = "@login";
+                    loginParam.Value = login;
                     command.Parameters.Add(loginParam);
 
-                    isHasClint = (int)(Int64)command.ExecuteScalar();
+                    object isHasClientObj = command.ExecuteScalar();
+                    ParseData(isHasClientObj, out isHasClient, out string _);
                 }
+                CloseConn();
             }
             //проверка по логину/паролю
             else
             {
-                using (SqliteConnection connection = new SqliteConnection(connectionString))
+                OpenConn();
+                using (DbCommand command = Factory.CreateCommand())
                 {
-                    connection.Open();
-                    SqliteCommand command = new SqliteCommand();
-                    command.Connection = connection;
-
+                    command.Connection = Connection;
                     //Проверка на наличие данного клиента в бд по логину/паролю
                     command.CommandText = "SELECT Count(*) " +
                         "FROM Clients " +
                         "WHERE Clients.Login = @login AND Clients.ClientPassword = @password;";
 
-                    SqliteParameter loginParam = new SqliteParameter("@login", login);
-                    SqliteParameter passwordParam = new SqliteParameter("@password", password);
+                    DbParameter loginParam = Factory.CreateParameter();
+                    loginParam.ParameterName = "@login";
+                    loginParam.Value = login;
                     command.Parameters.Add(loginParam);
+
+                    DbParameter passwordParam = Factory.CreateParameter();
+                    passwordParam.ParameterName = "@password";
+                    passwordParam.Value = password;
                     command.Parameters.Add(passwordParam);
 
-                    isHasClint = (int)(Int64)command.ExecuteScalar();
+                    object isHasClientObj = command.ExecuteScalar();
+                    ParseData(isHasClientObj, out isHasClient, out string _);
                 }
+                CloseConn();
             }
-            return isHasClint;
+            return isHasClient;
         }
 
         //регистрация нового клиента
         internal static void SetNewClientDB(string fullName, string login, string password)
         {
-            using (SqliteConnection connection = new SqliteConnection(connectionString))
+            OpenConn();
+            using (DbCommand command = Factory.CreateCommand())
             {
-                connection.Open();
-                SqliteCommand command = new SqliteCommand();
-                command.Connection = connection;
-
+                command.Connection = Connection;
                 //Внести клиента в бд
                 command.CommandText = "INSERT INTO Clients (FullName, Login, ClientPassword) VALUES " +
                     "(@fullname, @login, @password);";
 
-                SqliteParameter fullnameParam = new SqliteParameter("@fullname", fullName);
-                SqliteParameter loginParam = new SqliteParameter("@login", login);
-                SqliteParameter passwordParam = new SqliteParameter("@password", password);
+                DbParameter fullnameParam = Factory.CreateParameter();
+                fullnameParam.ParameterName = "@fullname";
+                fullnameParam.Value = fullName;
                 command.Parameters.Add(fullnameParam);
+
+                DbParameter loginParam = Factory.CreateParameter();
+                loginParam.ParameterName = "@login";
+                loginParam.Value = login;
                 command.Parameters.Add(loginParam);
+
+                DbParameter passwordParam = Factory.CreateParameter();
+                passwordParam.ParameterName = "@password";
+                passwordParam.Value = password;
                 command.Parameters.Add(passwordParam);
 
                 command.ExecuteNonQuery();                           
             }
+            CloseConn();
         }
 
         //получение клиента из БД
@@ -330,36 +435,74 @@ namespace ConsoleShop_WithDB
         {
             int id = 0;
             string name = null;
-            using (SqliteConnection connection = new SqliteConnection(connectionString))
+            OpenConn();
+            using (DbCommand command = Factory.CreateCommand())
             {
-                connection.Open();
-                SqliteCommand command = new SqliteCommand();
-                command.Connection = connection;
-
+                command.Connection = Connection;
                 //Получение id клиента
                 command.CommandText = "SELECT Clients.Id, Clients.FullName " +
                     "FROM Clients " +
                     "WHERE Clients.Login = @login AND Clients.ClientPassword = @password ";
 
-                SqliteParameter loginParam = new SqliteParameter("@login", login);
-                SqliteParameter passwordParam = new SqliteParameter("@password", password);
+                DbParameter loginParam = Factory.CreateParameter();
+                loginParam.ParameterName = "@login";
+                loginParam.Value = login;
                 command.Parameters.Add(loginParam);
+
+                DbParameter passwordParam = Factory.CreateParameter();
+                passwordParam.ParameterName = "@password";
+                passwordParam.Value = password;
                 command.Parameters.Add(passwordParam);
 
-                SqliteDataReader reader = command.ExecuteReader();
+                DbDataReader reader = command.ExecuteReader();
                 
                 if (reader.HasRows)
                 {
                     //авторизация
                     while (reader.Read())
                     {
-                        id = (int)(Int64)reader.GetValue(0);
-                        name = (string)reader.GetValue(1);                        
+                        object idObj = reader.GetValue(0);
+                        object nameObj = reader.GetValue(1); 
+
+                        ParseData(idObj, out id, out string _);
+                        ParseData(nameObj, out int _, out name);                  
                     }
                 }
                 reader.Close();
             }
+            CloseConn();
             return (id, name);
+        }
+
+        //открыть соединение
+        private static void OpenConn()
+        {
+            Connection = Factory.CreateConnection();
+            Connection.ConnectionString = _connectionString;
+            Connection.Open();
+        }
+
+        //закрыть соединение
+        private static void CloseConn()
+        {
+            if (Connection?.State != ConnectionState.Closed)
+                Connection?.Close();
+        }
+
+        //Конвертация данный в инт или строку
+        private static void ParseData(object obj, out int intObj, out string strObj)  
+        {
+            switch (obj)
+            {
+                case Int64: 
+                    intObj = (int)(Int64)obj; strObj = null; break;
+                case Int32:
+                    intObj = (int)obj; strObj = null; break;
+                case string:
+                    intObj = 0; strObj = (string)obj; break;
+                default:
+                    intObj = 0; strObj = null; break;
+            }
         }
     }
 }

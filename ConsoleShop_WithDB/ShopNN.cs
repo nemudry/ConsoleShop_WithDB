@@ -5,14 +5,12 @@ namespace ConsoleShop_WithDB
     {
         protected override string Name { get; }
         protected override string Description { get; }
-        protected override Account Account { get; set; }
 
         internal ShopNN ()
+            :base()
         {
             Name = "Магазин \"Слизь Сизня\"";
             Description = "Нижегородское отделение лицензионной продукции по консольной РПГ \"Hero and SVIN\".";
-            PlaceInShop = placeStatus.ВходВМагазин;
-            Account = new Account();
         }
     }
 }

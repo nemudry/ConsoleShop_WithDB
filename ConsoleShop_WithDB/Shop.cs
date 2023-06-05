@@ -5,7 +5,7 @@ namespace ConsoleShop_WithDB
     {
         protected virtual string Name { get; }
         protected virtual string Description { get; }
-        protected static Dictionary<Product, int> ProductsInShop { get; } = DataBase.LoadDB();
+        protected static Dictionary<Product, int> ProductsInShop { get; private set; } 
         internal placeStatus PlaceInShop { get; set; }
         internal enum placeStatus
         {
@@ -14,6 +14,15 @@ namespace ConsoleShop_WithDB
             ВКорзину
         }
         protected virtual Account Account { get; set; }
+
+        internal Shop()
+        {
+            Name = "";
+            Description = "";
+            PlaceInShop = placeStatus.ВходВМагазин;
+            Account = new Account();
+            ProductsInShop = DataBase.LoadDB();
+        }
 
         //Запуск магазина
         public virtual void StartShop()
@@ -507,7 +516,7 @@ namespace ConsoleShop_WithDB
                 if (isHasClint == 1)
                 {
                     var client =  DataBase.GetClientDB(answerLogin, answerPassword);
-                    Account = new Account(client.id, client.name, new Busket(Account.Busket.ProductsInBusket), Account.PurchaseStatus);
+                    Account = new Account(client.id, client.name, Account.Busket, Account.PurchaseStatus);
                     Color.Green("Авторизация прошла успешно!");
                     Feedback.ReadKey();
                     break;
@@ -524,7 +533,7 @@ namespace ConsoleShop_WithDB
         //деавторизация
         protected virtual void Deauthorization()
         {
-            Account = new Account(new Busket(Account.Busket.ProductsInBusket), Account.PurchaseStatus);
+            Account = new Account(Account.Busket, Account.PurchaseStatus);
 
             Color.Green("Выход из аккаунта произведен успешно!");
             Feedback.ReadKey();

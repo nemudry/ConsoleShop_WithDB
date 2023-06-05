@@ -8,10 +8,6 @@ namespace ConsoleShop_WithDB
         {
             ProductsInBusket = new Dictionary<Product, int>();
         }
-        internal Busket(Dictionary<Product, int> productsInBusket)
-        {
-            ProductsInBusket = productsInBusket;
-        }
 
         // общая цена товаров в корзине
         internal double TotalSum()
