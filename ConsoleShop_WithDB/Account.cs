@@ -46,13 +46,13 @@ namespace ConsoleShop_WithDB
             ClientId = id;
             ClientFullName = fullName;
             Busket = busket;
-            HistoryPurchase = DataBase.GetOrdersDB(id);
+            HistoryPurchase = DataBase.GetOrdersDBAsync(id).Result;
             PurchaseStatus = purchaseStatus;
             ClientStatus = clientStatus.Авторизован;
         }
                 
         // Оплата товара
-        internal void PayPayment()
+        internal async Task PayPayment()
         {
             int answerPayment;
             while (true)
@@ -75,10 +75,10 @@ namespace ConsoleShop_WithDB
                 {
                     //формирование заказа в бд
                     Order order = new Order(DateTime.Now, ClientId, Busket.ProductsInBusket);
-                    DataBase.SetOrderDB(order);
+                    await DataBase.SetOrderDBAsync(order);
 
                     //покупка товаров(уменьшение товара на складах)
-                    DataBase.SetBuyProductsDB(Busket.ProductsInBusket);
+                    await DataBase.SetBuyProductsDBAsync(Busket.ProductsInBusket);
 
                     Color.Green($"Денежные средства в размере {Busket.TotalSum()}р списаны с Вашей банковской карты. Благодарим за покупку!");
                     Feedback.ReadKey();

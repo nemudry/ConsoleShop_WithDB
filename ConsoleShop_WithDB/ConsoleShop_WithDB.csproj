@@ -5,6 +5,11 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <SignAssembly>True</SignAssembly>
+    <AssemblyOriginatorKeyFile>D:\Source\ConsoleShop_WithDB\ShopKeyPair.snk</AssemblyOriginatorKeyFile>
+    <Title>Shop "Hero and SVIN"</Title>
+    <Authors>Nemudry</Authors>
+    <Company>Nemudry</Company>
   </PropertyGroup>
 
   <ItemGroup>

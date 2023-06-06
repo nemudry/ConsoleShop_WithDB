@@ -25,11 +25,11 @@ namespace ConsoleShop_WithDB
 
 
         //Загрузка базы данных 
-        internal static Dictionary<Product, int> LoadDB()
+        internal static async Task<Dictionary<Product, int>> LoadDBAsync()
         {
             DataSet data = new DataSet();
 
-            OpenConn();
+            await OpenConnAsync();
             using (DbCommand command = Factory.CreateCommand())
             {                
                 command.Connection = Connection;
@@ -61,7 +61,7 @@ namespace ConsoleShop_WithDB
                 adapter.SelectCommand = command;
                 adapter.Fill(data);
             }
-            CloseConn();
+            await CloseConnAsync();
 
             //преобразование данных бд в дикшинери ProductsInShop
             Dictionary<Product, int> ProductsInShop = new Dictionary<Product, int>();
@@ -96,11 +96,11 @@ namespace ConsoleShop_WithDB
         }
 
         //Покупка товара (уменьшение количества товара на складах в БД)
-        internal static void SetBuyProductsDB(Dictionary<Product, int> order)
+        internal static async Task SetBuyProductsDBAsync(Dictionary<Product, int> order)
         {
             DataSet data = new DataSet();
 
-            OpenConn();
+            await OpenConnAsync();
             using (DbCommand command = Factory.CreateCommand())
             {
                 command.Connection = Connection;
@@ -118,7 +118,7 @@ namespace ConsoleShop_WithDB
                 adapter.SelectCommand = command;
                 adapter.Fill(data);
             }
-            CloseConn();
+            await CloseConnAsync();
 
             //фильтрация данных и получение листка productCountInStorehouses
             List<(Product, int, int)> productCountInStorehouses = new List<(Product, int, int)>();
@@ -157,7 +157,7 @@ namespace ConsoleShop_WithDB
                         //если на ближайшем складе достаточно товара
                         if (prod.Item2 >= product.Value)
                         {
-                            OpenConn();
+                            await OpenConnAsync();
                             using (DbCommand command = Factory.CreateCommand())
                             {
                                 command.Connection = Connection;
@@ -176,14 +176,14 @@ namespace ConsoleShop_WithDB
                                 countParam.Value = product.Value;
                                 command.Parameters.Add(countParam);
 
-                                command.ExecuteNonQuery();
+                                await command.ExecuteNonQueryAsync();
                             }
-                            CloseConn();
+                            await CloseConnAsync();
                         }
                         //если на ближайшем складе НЕдостаточно товара
                         else
                         {
-                            OpenConn();
+                            await OpenConnAsync();
                             using (DbCommand command = Factory.CreateCommand())
                             {
                                 command.Connection = Connection;
@@ -213,9 +213,9 @@ namespace ConsoleShop_WithDB
                                 countMSCParam.Value = order[product.Key];
                                 command.Parameters.Add(countMSCParam);
 
-                                command.ExecuteNonQuery();
+                                await command.ExecuteNonQueryAsync();
                             }
-                            CloseConn();
+                            await CloseConnAsync();
                         }
                         break;
                     }
@@ -224,9 +224,9 @@ namespace ConsoleShop_WithDB
         }
 
         //формирование заказа в БД
-        internal static void SetOrderDB(Order order)
+        internal static async Task SetOrderDBAsync(Order order)
         {
-            OpenConn();
+            await OpenConnAsync();
             using (DbCommand command = Factory.CreateCommand())
             {
 
@@ -247,7 +247,7 @@ namespace ConsoleShop_WithDB
 
                         DbParameter dateParam = Factory.CreateParameter();
                         dateParam.ParameterName = $"@dateOrder{numberProduct}";
-                        dateParam.Value = order.DateTimeOrder;
+                        dateParam.Value = order.DateTimeOrder.ToString();
                         command.Parameters.Add(dateParam);
 
                         DbParameter clientIdParam = Factory.CreateParameter();
@@ -270,30 +270,30 @@ namespace ConsoleShop_WithDB
                         priceParam.Value = product.Value * product.Key.Price;
                         command.Parameters.Add(priceParam);
 
-                        command.ExecuteNonQuery();
+                        await command.ExecuteNonQueryAsync();
                         numberProduct++;
                     }
-                    transaction.Commit();
+                    await transaction.CommitAsync();
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex.Message);
-                    transaction.Rollback();
+                    await transaction.RollbackAsync();
                     Console.ReadKey();
                 }
                 finally
                 {
-                    CloseConn();
+                    await CloseConnAsync();
                 }
             }  
         }
 
         //получение заказов из бд
-        internal static List<Order> GetOrdersDB(int ClientId)
+        internal static async Task<List<Order>> GetOrdersDBAsync(int ClientId)
         {
             DataSet data = new DataSet();
 
-            OpenConn();
+            await OpenConnAsync();
             using (DbCommand command = Factory.CreateCommand())
             {
                 command.Connection = Connection;
@@ -310,7 +310,7 @@ namespace ConsoleShop_WithDB
                 adapter.SelectCommand = command;
                 adapter.Fill(data);
             }
-            CloseConn();
+            await CloseConnAsync();
 
             //преобразование данных бд в листок заказов
             List<Order> orders = new List<Order>();
@@ -343,14 +343,14 @@ namespace ConsoleShop_WithDB
         }
 
         //проверка наличия клиента в бд
-        internal static int CheckClientDB(string login, string password = null)
+        internal static async Task<int> CheckClientDBAsync(string login, string password = null)
         {
             int isHasClient;
 
             //проверка только по логину
             if (password == null)
             {
-                OpenConn();
+                await OpenConnAsync();
                 using (DbCommand command = Factory.CreateCommand())
                 {
                     command.Connection = Connection;   
@@ -364,15 +364,15 @@ namespace ConsoleShop_WithDB
                     loginParam.Value = login;
                     command.Parameters.Add(loginParam);
 
-                    object isHasClientObj = command.ExecuteScalar();
+                    object isHasClientObj = await command.ExecuteScalarAsync();
                     ParseData(isHasClientObj, out isHasClient, out string _);
                 }
-                CloseConn();
+                await CloseConnAsync();
             }
             //проверка по логину/паролю
             else
             {
-                OpenConn();
+                await OpenConnAsync();
                 using (DbCommand command = Factory.CreateCommand())
                 {
                     command.Connection = Connection;
@@ -391,18 +391,18 @@ namespace ConsoleShop_WithDB
                     passwordParam.Value = password;
                     command.Parameters.Add(passwordParam);
 
-                    object isHasClientObj = command.ExecuteScalar();
+                    object isHasClientObj = await command.ExecuteScalarAsync();
                     ParseData(isHasClientObj, out isHasClient, out string _);
                 }
-                CloseConn();
+                await CloseConnAsync();
             }
             return isHasClient;
         }
 
         //регистрация нового клиента
-        internal static void SetNewClientDB(string fullName, string login, string password)
+        internal static async Task SetNewClientDBAsync(string fullName, string login, string password)
         {
-            OpenConn();
+            await OpenConnAsync();
             using (DbCommand command = Factory.CreateCommand())
             {
                 command.Connection = Connection;
@@ -425,17 +425,17 @@ namespace ConsoleShop_WithDB
                 passwordParam.Value = password;
                 command.Parameters.Add(passwordParam);
 
-                command.ExecuteNonQuery();                           
+                await command.ExecuteNonQueryAsync();                           
             }
-            CloseConn();
+            await CloseConnAsync();
         }
 
         //получение клиента из БД
-        internal static (int id, string name) GetClientDB (string login, string password)
+        internal static async Task<(int id, string name)> GetClientDBAsync(string login, string password)
         {
             int id = 0;
             string name = null;
-            OpenConn();
+            OpenConnAsync();
             using (DbCommand command = Factory.CreateCommand())
             {
                 command.Connection = Connection;
@@ -454,12 +454,12 @@ namespace ConsoleShop_WithDB
                 passwordParam.Value = password;
                 command.Parameters.Add(passwordParam);
 
-                DbDataReader reader = command.ExecuteReader();
+                DbDataReader reader = await command.ExecuteReaderAsync();
                 
                 if (reader.HasRows)
                 {
                     //авторизация
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
                         object idObj = reader.GetValue(0);
                         object nameObj = reader.GetValue(1); 
@@ -468,25 +468,25 @@ namespace ConsoleShop_WithDB
                         ParseData(nameObj, out int _, out name);                  
                     }
                 }
-                reader.Close();
+                await reader.CloseAsync();
             }
-            CloseConn();
+            CloseConnAsync();
             return (id, name);
         }
 
         //открыть соединение
-        private static void OpenConn()
+        private static async Task OpenConnAsync()
         {
             Connection = Factory.CreateConnection();
             Connection.ConnectionString = _connectionString;
-            Connection.Open();
+            await Connection.OpenAsync();
         }
 
         //закрыть соединение
-        private static void CloseConn()
+        private static async Task CloseConnAsync()
         {
             if (Connection?.State != ConnectionState.Closed)
-                Connection?.Close();
+                await Connection?.CloseAsync();
         }
 
         //Конвертация данный в инт или строку

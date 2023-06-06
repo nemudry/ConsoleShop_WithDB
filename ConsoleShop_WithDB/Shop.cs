@@ -21,7 +21,7 @@ namespace ConsoleShop_WithDB
             Description = "";
             PlaceInShop = placeStatus.ВходВМагазин;
             Account = new Account();
-            ProductsInShop = DataBase.LoadDB();
+            ProductsInShop = DataBase.LoadDBAsync().Result; 
         }
 
         //Запуск магазина
@@ -73,7 +73,7 @@ namespace ConsoleShop_WithDB
                 // Вход в аккаунт
                 if (answerWantToBuy == 3)
                 {
-                   if(CheckAuthorization()) GoToAccount();
+                   if(CheckAuthorizationAsync().Result) GoToAccount();
                 }
 
                 // выход из программы
@@ -299,7 +299,7 @@ namespace ConsoleShop_WithDB
                 //Перейти к оплате.
                 if (answerInBusket == 1)
                 {
-                    if (CheckAuthorization())
+                    if (CheckAuthorizationAsync().Result)
                     {
                         Account.PayPayment();
                     }
@@ -376,7 +376,7 @@ namespace ConsoleShop_WithDB
         }
 
         //проверка на авторизацию
-        protected virtual bool CheckAuthorization()
+        protected virtual async Task<bool> CheckAuthorizationAsync()
         {
             //если НЕавторизован
             while (true)
@@ -401,13 +401,13 @@ namespace ConsoleShop_WithDB
                     //регистрация
                     if (answerInAccount == 1)
                     {
-                        Registration();
+                       await RegistrationAsync();
                         break;
                     }
                     // авторизация
                     else if (answerInAccount == 2)
                     {
-                        Authorization();         
+                       await AuthorizationAsync();         
                     }
                     // -1 вернуться к покупкам
                     else return false;
@@ -418,7 +418,7 @@ namespace ConsoleShop_WithDB
         }
 
         //регистрация
-        protected virtual void Registration()
+        protected virtual async Task RegistrationAsync()
         {
             while (true)
             {
@@ -459,12 +459,12 @@ namespace ConsoleShop_WithDB
                 }
 
                 //Проверка на наличие данного клиента в бд        
-                int isHasClint = DataBase.CheckClientDB(answerLogin);
+                int isHasClint = await DataBase.CheckClientDBAsync(answerLogin);
 
                 //Если клиента нет в бд - регистрация нового клиента
                 if (isHasClint == 0)
                 {
-                    DataBase.SetNewClientDB(answerFullName, answerLogin, answerPassword);
+                    await DataBase.SetNewClientDBAsync(answerFullName, answerLogin, answerPassword);
                     Color.Green("Регистрация прошла успешно!");
                     Feedback.ReadKey();
                     break;
@@ -479,7 +479,7 @@ namespace ConsoleShop_WithDB
         }
 
         //авторизация
-        protected virtual void Authorization()
+        protected virtual async Task AuthorizationAsync()
         {
             while (true)
             {
@@ -510,12 +510,12 @@ namespace ConsoleShop_WithDB
                 }
 
                 //Проверка на наличие данного клиента в бд
-                int isHasClint = DataBase.CheckClientDB(answerLogin, answerPassword);    
+                int isHasClint = await DataBase.CheckClientDBAsync(answerLogin, answerPassword);    
 
                 //Если клиент есть в бд - авторизация
                 if (isHasClint == 1)
                 {
-                    var client =  DataBase.GetClientDB(answerLogin, answerPassword);
+                    var client = await DataBase.GetClientDBAsync(answerLogin, answerPassword);
                     Account = new Account(client.id, client.name, Account.Busket, Account.PurchaseStatus);
                     Color.Green("Авторизация прошла успешно!");
                     Feedback.ReadKey();
