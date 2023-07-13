@@ -1,29 +1,18 @@
-﻿
-namespace ConsoleShop_WithDB
+﻿namespace ConsoleShop_WithDB;
+internal class Order 
 {
-    internal class Order 
+    internal int IdClient { get; }
+    internal DateTime DateTimeOrder { get; }
+    internal Product Product { get; }
+    internal int CountProduct { get; }
+    internal double Price { get; }
+
+    internal Order(DateTime dateTimeOrder, int idClient, int productId, int countProduct, double price)
     {
-        internal int IdClient { get; }
-
-        internal DateTime DateTimeOrder { get; }
-
-        internal Dictionary<Product, int> Purchase { get; }
-
-        internal double Price { get; }
-
-        internal Order(DateTime dateTimeOrder, int idClient, Dictionary<Product, int> purchase, double price)
-        {
-            IdClient = idClient;
-            DateTimeOrder = dateTimeOrder;
-            Purchase = purchase;
-            Price = price;
-        }
-
-        internal Order(DateTime dateTimeOrder, int idClient, Dictionary<Product, int> purchase)
-        {
-            IdClient = idClient;
-            DateTimeOrder = dateTimeOrder;
-            Purchase = purchase;
-        }
-    }        
-}
+        IdClient = idClient;
+        DateTimeOrder = dateTimeOrder;
+        Product = Shop.GetProductById(productId);
+        CountProduct = countProduct;
+        Price = price;
+    }
+}        
