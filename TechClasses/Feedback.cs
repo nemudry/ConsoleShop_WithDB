@@ -10,6 +10,7 @@ public static class Feedback
         Console.WriteLine();
         return answer;
     }
+    //Ввод данных игроком, строки
     public static string AnswerPlayerString()
     {
         Color.CyanShort("Ваш ответ: ");
@@ -33,18 +34,16 @@ public static class Feedback
         int returnNumber = 0;
         List<int> returnRange = new List<int>();
 
-        Color.Cyan(question); //вопрос
+        Color.Cyan(question); //показать вопрос
+        foreach (var answer in answers)// перечисление возможных ответов
+            if (answer != null) Console.WriteLine($"[{++number}]. {answer}.");
 
-        foreach (var ans in answers)
-        {
-           if (ans != null) Console.WriteLine($"[{++number}]. {ans}."); // перечисление ответов
-        }
-
+        //перечисление ответов на возврат в меню (со знаком минус)
         if (returnAnswers.Length > 0)
         {            
             foreach (var ans in returnAnswers)
             {
-                Console.WriteLine($"[{--returnNumber}]. {ans}."); //перечисление ответов на возврат в меню (со знаком минус)
+                Console.WriteLine($"[{--returnNumber}]. {ans}.");
                 returnRange.Add(returnNumber);
             }
         }

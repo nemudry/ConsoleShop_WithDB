@@ -1,12 +1,18 @@
 ﻿namespace ConsoleShop_WithDB;
-internal class Product
+
+//продукт
+public class Product
 {
     internal int Id { get; }
+    //название
     internal string Name { get; }
+    //категория товара
     internal string Category { get; }
-    internal string Description { get; }
+    //описание
+    internal string Description { get; }    
+    //производитель
     internal string Made { get; }
-
+    //цена
     private double price;
     internal double Price
     {
@@ -14,15 +20,14 @@ internal class Product
         set
         {
             if (Discount != 0)
-            {
                 price = value - value * (Discount / 100); // снижение цены на скидку
-            }
             else price = value;
         }
     }
-    internal double Discount { get; }       
+    //скидка
+    internal double Discount { get; }
 
-    internal Product (int id, string name, string category, string description, string made, int price, int discount)
+    public Product (int id, string name, string category, string description, string made, int price, int discount)
     {
         Id = id;
         Name = name;

@@ -1,9 +1,7 @@
 ﻿namespace ConsoleShop_WithDB;
+
 internal class ShopNN : Shop
 {
-    protected override string Name { get; }
-    protected override string Description { get; }
-
     internal ShopNN ()
         :base()
     {

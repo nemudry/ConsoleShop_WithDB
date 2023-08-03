@@ -1,13 +1,19 @@
 ﻿namespace ConsoleShop_WithDB;
-internal class Order 
+//заказ
+public class Order
 {
+    //клиент-покупатель
     internal int IdClient { get; }
+    //дата и время заказа
     internal DateTime DateTimeOrder { get; }
+    //купленный товар
     internal Product Product { get; }
+    //количество товара
     internal int CountProduct { get; }
+    //цена
     internal double Price { get; }
 
-    internal Order(DateTime dateTimeOrder, int idClient, int productId, int countProduct, double price)
+    public Order(DateTime dateTimeOrder, int idClient, int productId, int countProduct, double price)
     {
         IdClient = idClient;
         DateTimeOrder = dateTimeOrder;

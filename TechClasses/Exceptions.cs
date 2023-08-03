@@ -2,6 +2,7 @@
 
 public static class Exceptions
 {
+    //информация по исключению
     public static void ShowExInfo (Exception ex)
     {
         Console.WriteLine(ex.Message);

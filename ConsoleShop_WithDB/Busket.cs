@@ -1,6 +1,8 @@
 ﻿namespace ConsoleShop_WithDB;
+//корзина
 internal class Busket
 {
+    //продукты в корзине
     internal Dictionary<Product, int> ProductsInBusket { get; }
     internal Busket()
     {
@@ -12,9 +14,7 @@ internal class Busket
     {
         double sum = 0;
         foreach (var product in ProductsInBusket)
-        {
             sum += product.Key.Price * product.Value;
-        }
         return sum;
     }
 
@@ -27,8 +27,7 @@ internal class Busket
         int numberInBusket = 0;
         foreach (var product in ProductsInBusket)
         {
-            numberInBusket++;
-            Console.WriteLine($"[{numberInBusket}]. Товар \"{product.Key.Name}\", количество {product.Value} шт., " +
+            Console.WriteLine($"[{++numberInBusket}]. Товар \"{product.Key.Name}\", количество {product.Value} шт., " +
                 $"общая цена: {product.Value * product.Key.Price}р");
         }
         Console.WriteLine($"Стоимость всех товаров в корзине составляет {TotalSum()}р.");

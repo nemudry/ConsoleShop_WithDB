@@ -10,7 +10,6 @@ public static class Color
         Console.ResetColor();
         Console.WriteLine();
     }
-
     public static void RedShort(string text)
     {
         Console.ForegroundColor = ConsoleColor.Red;
@@ -25,7 +24,6 @@ public static class Color
         Console.ResetColor();
         Console.WriteLine();
     }
-
     public static void GreenShort(string text)
     {
         Console.ForegroundColor = ConsoleColor.Green;
@@ -40,7 +38,6 @@ public static class Color
         Console.ResetColor();
         Console.WriteLine();
     }
-
     public static void CyanShort(string text)
     {
         Console.ForegroundColor = ConsoleColor.Cyan;

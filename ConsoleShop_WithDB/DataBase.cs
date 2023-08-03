@@ -1,15 +1,22 @@
-﻿namespace ConsoleShop_WithDB;
+﻿using System.Data;
+using System.Data.Common;
+using System.Configuration;
+using System.Data.SQLite;
+using Microsoft.Data.SqlClient;
+
+namespace ConsoleShop_WithDB;
+//работа с быд
 internal class DataBase
 {
     static DataBase ()
     {
+        //регистрация провайдера
         DbProviderFactories.RegisterFactory("SQLite", SQLiteFactory.Instance);
         DbProviderFactories.RegisterFactory("SqlServer", SqlClientFactory.Instance);
 
         //Данные о поставщике СУБД и строка подключения - в конфиг.файле
         string provider = ConfigurationManager.AppSettings["provider"];
         _connectionString = ConfigurationManager.ConnectionStrings[provider].ConnectionString;
-
         Factory = DbProviderFactories.GetFactory(provider);
     }       
     
@@ -369,13 +376,13 @@ internal class DataBase
     }
 
     //проверка наличия клиента в бд
-    internal static async Task<bool> CheckClientDBAsync(string login, string password = null)
+    internal static async Task<bool> CheckClientDBAsync(Account account, bool logAndPass)
     {
         int isHasClient = 0;
         try
         {
             //проверка только по логину
-            if (password == null)
+            if (!logAndPass)
             {
                 await OpenConnAsync();
                 using (DbCommand command = Factory.CreateCommand())
@@ -388,7 +395,7 @@ internal class DataBase
 
                     DbParameter loginParam = Factory.CreateParameter();
                     loginParam.ParameterName = "@login";
-                    loginParam.Value = login;
+                    loginParam.Value = account.ClientLogin;
                     command.Parameters.Add(loginParam);
 
                     object isHasClientObj = await command.ExecuteScalarAsync();
@@ -410,12 +417,12 @@ internal class DataBase
 
                     DbParameter loginParam = Factory.CreateParameter();
                     loginParam.ParameterName = "@login";
-                    loginParam.Value = login;
+                    loginParam.Value = account.ClientLogin;
                     command.Parameters.Add(loginParam);
 
                     DbParameter passwordParam = Factory.CreateParameter();
                     passwordParam.ParameterName = "@password";
-                    passwordParam.Value = password;
+                    passwordParam.Value = account.ClientPassword;
                     command.Parameters.Add(passwordParam);
 
                     object isHasClientObj = await command.ExecuteScalarAsync();
@@ -434,7 +441,7 @@ internal class DataBase
     }
 
     //регистрация нового клиента
-    internal static async Task<bool> SetNewClientDBAsync(string fullName, string login, string password)
+    internal static async Task<bool> SetNewClientDBAsync(Account account)
     {
         var result = false;
         try
@@ -449,17 +456,17 @@ internal class DataBase
 
                 DbParameter fullnameParam = Factory.CreateParameter();
                 fullnameParam.ParameterName = "@fullname";
-                fullnameParam.Value = fullName;
+                fullnameParam.Value = account.ClientFullName;
                 command.Parameters.Add(fullnameParam);
 
                 DbParameter loginParam = Factory.CreateParameter();
                 loginParam.ParameterName = "@login";
-                loginParam.Value = login;
+                loginParam.Value = account.ClientLogin;
                 command.Parameters.Add(loginParam);
 
                 DbParameter passwordParam = Factory.CreateParameter();
                 passwordParam.ParameterName = "@password";
-                passwordParam.Value = password;
+                passwordParam.Value = account.ClientPassword;
                 command.Parameters.Add(passwordParam);
 
                 await command.ExecuteNonQueryAsync();
@@ -477,10 +484,12 @@ internal class DataBase
     }
 
     //получение клиента из БД
-    internal static async Task<(int id, string name)> GetClientDBAsync(string login, string password)
+    internal static async Task<Account> GetClientDBAsync(Account account)
     {
         int id = 0;
         string name = null;
+        string log = null;
+        string pass = null;
         try
         {
             await OpenConnAsync();
@@ -488,18 +497,18 @@ internal class DataBase
             {
                 command.Connection = Connection;
                 //Получение id клиента
-                command.CommandText = "SELECT Clients.Id, Clients.FullName " +
+                command.CommandText = "SELECT Clients.Id, Clients.FullName, Clients.Login, Clients.ClientPassword " +
                     "FROM Clients " +
                     "WHERE Clients.Login = @login AND Clients.ClientPassword = @password ";
 
                 DbParameter loginParam = Factory.CreateParameter();
                 loginParam.ParameterName = "@login";
-                loginParam.Value = login;
+                loginParam.Value = account.ClientLogin;
                 command.Parameters.Add(loginParam);
 
                 DbParameter passwordParam = Factory.CreateParameter();
                 passwordParam.ParameterName = "@password";
-                passwordParam.Value = password;
+                passwordParam.Value = account.ClientPassword;
                 command.Parameters.Add(passwordParam);
 
                 DbDataReader reader = await command.ExecuteReaderAsync();
@@ -511,9 +520,13 @@ internal class DataBase
                     {
                         object idObj = reader.GetValue(0);
                         object nameObj = reader.GetValue(1);
+                        object logObj = reader.GetValue(2);
+                        object passObj = reader.GetValue(3);
 
                         Converter.ParseData(idObj, out id, out string _);
                         Converter.ParseData(nameObj, out int _, out name);
+                        Converter.ParseData(logObj, out int _, out log);
+                        Converter.ParseData(passObj, out int _, out pass);
                     }
                 }
                 await reader.CloseAsync();
@@ -526,6 +539,6 @@ internal class DataBase
             Exceptions.ShowExInfo(e);
             Feedback.AcceptPlayer();
         }
-        return (id, name);
+        return new Account(id, name, log, pass);
     }
 }
